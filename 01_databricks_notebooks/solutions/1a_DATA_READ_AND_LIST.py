@@ -31,7 +31,7 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./0_WORKSHOP_CONSTANTS
+# MAGIC %run ../utilities/WORKSHOP_CONSTANTS
 
 # COMMAND ----------
 
@@ -56,6 +56,17 @@ try:
     print(dbutils.fs.ls(MLW_DATA_ROOT))   
 except Exception as e:
     print(f"If you got an error, the most likely problem permissions! '{e}'")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Interpreting Cloud Data URLs
+# MAGIC The same resource may be accessible via different tools in different formats.  The below examples point to the same resource (the one we're using in this workshop) but allow access through different clients.
+# MAGIC * ADLSg2 (databricks, data tools) - `abfss://mlworkshop2021@STORAGE/`
+# MAGIC * Azure portal (browser) - `https://PORTAL/#blade/Microsoft_Azure_Storage/....`
+# MAGIC * azcopy url (CLI, custom apps) - `https://blackbirdproddatastore.blob.core.windows.net/mlworkshop2021`
+# MAGIC 
+# MAGIC Although you can't move or delete items, you can view, download, and upload (where permissions allow) through the Azure Portal.  Check out this [Azure Portal URL](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None) to view the workshop's primary data store.
 
 # COMMAND ----------
 
@@ -102,14 +113,14 @@ display(sdf_ihx_gold)
 
 # unfortuantely, it's not easy to read from ABFSS (Azure) sources in R, but you can make a "bridge"
 # this bridge exists in the spark context, which is reset / reloaded for every restart of your notebook
-sdf_ihx.createOrReplaceTempView("sdf_ihx")
+sdf_ihx_gold.createOrReplaceTempView("sdf_ihx_gold")
 
 # COMMAND ----------
 
 # MAGIC %r 
 # MAGIC # easily moving from ABFSS (cloud data sets into R can be done by temporarily registering data in a spark session)
-# MAGIC require(SparkR)
-# MAGIC r_jobs <- sql("SELECT jobid FROM sdf_ihx")
+# MAGIC # require(SparkR)
+# MAGIC r_jobs <- sql("SELECT jobid FROM sdf_ihx_gold limit 10")
 # MAGIC display(r_jobs)
 # MAGIC 
 # MAGIC # Otherwise, to read a CSV file, you'd need to change the source to let databricks know
@@ -120,150 +131,7 @@ sdf_ihx.createOrReplaceTempView("sdf_ihx")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Interpreting Cloud Data URLs
-# MAGIC The same resource may be accessible via different tools in different formats.  The below examples point to the same resource (the one we're using in this workshop) but allow access through different clients.
-# MAGIC * ADLSg2 (databricks, data tools) - `abfss://mlworkshop2021@STORAGE/`
-# MAGIC * Azure portal (browser) - `https://PORTAL/#blade/Microsoft_Azure_Storage/....`
-# MAGIC * azcopy url (CLI, custom apps) - `https://blackbirdproddatastore.blob.core.windows.net/mlworkshop2021`
-# MAGIC 
-# MAGIC Although you can't move or delete items, you can view, download, and upload (where permissions allow) through the Azure Portal.  Check out this [Azure Portal URL](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None) to view the workshop's primary data store.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC # Filtering and Selecting Data
-# MAGIC - During experiments, we probably don't want to view all of the data for a dataset
-# MAGIC - You may want to apply filters and other operations to reduce or display your results
-
-# COMMAND ----------
-
-# load our SQL functions for filteirng
-from pyspark.sql import functions as F
-
-# load delta dataframe (it should be the same!)
-sdf_ihx_gold = spark.read.format('delta').load(f"{IHX_GOLD}")
-display(sdf_ihx_gold)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Fitlering and selecting
-# MAGIC You don't need to make a long SQL or program query to accomplish most operations.  Instead, simple select and filter operations may slide the table (aka dataframe) enough for initial insepction.
-# MAGIC 
-# MAGIC - the `.filter(X == Y)` will select certain rows from your table
-# MAGIC - the `.select(X)` will select certain columns from your table to be used
-
-# COMMAND ----------
-
-# subsetting to rows where final_network_name is "Showtime"
-# TODO: how do we print out just showtime?
-
-# (uncomment + fix)
-# showtime = eview_delta.filter(XX == YY)
-
-# give up or need a hint? look at and expand the cell below!
-
-# COMMAND ----------
-
-#### ANSWER KEY for filter of showtime #####
-showtime = eview_delta.filter(col('final_network_name') == 'Showtime')
-# some examples will wrap a string or numerical value in `lit` which means "literal" (not sure why?)
-showtime = eview_delta.filter(col('final_network_name') == lit('Showtime'))
-
-# COMMAND ----------
-
-# MAGIC %md 
-# MAGIC ## Lazy Operations
-
-# COMMAND ----------
-
-display(showtime)
-
-# COMMAND ----------
-
-grpby = showtime.groupby('program_title').count()
-
-# COMMAND ----------
-
-display(grpby)
-
-# COMMAND ----------
-
-# group by showtime programs and count number of viewing records
-# play around with display features
-# - count desc/asc
-# - different plot options
-display(grpby.orderBy('count', ascending=False).limit(15))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Koalas Examples
-# MAGIC If you're in python and have worked with data in ML libraries, you may be more familar with the library [`pandas`](https://pandas.pydata.org/docs/).  While there is compatibility between spark data frames and pandas (e.g. just call the funciton [`df.toPandas()`](https://docs.databricks.com/spark/latest/spark-sql/spark-pandas.html)), there is another Spark-native way to manipulate content with the pandas API.
-# MAGIC 
-# MAGIC Enter [Koalas](https://docs.databricks.com/languages/koalas.html).  Yes, notn only a helpful data management package, but another adorable animal you might see in the zoo (or an [Aussie's home](https://thehill.com/homenews/news/476429-zoo-director-saves-pandas-monkeys-from-australia-fire-by-taking-them-home)).
-# MAGIC - developed by databricks, so spark native as long as possible
-# MAGIC - same friendly API for a lot of select, group and manipulation functions
-
-# COMMAND ----------
-
-import databricks.koalas as ks
-
-# convert from a spark dataframe
-kdf_showtime = ks.DataFrame(grpby)
-
-# take a subset after sorting by count
-# https://koalas.readthedocs.io/en/latest/reference/api/databricks.koalas.DataFrame.sort_values.html
-kdf_sub = kdf_showtime.sort_values('count', ascending=False).head(100)
-print("## TOP 10 most viewed ##")
-print(kdf_sub.head(10))
-
-# use pandas-like column accessors for a column (resort by title)
-print("## First 10 alphabetical titles in top 100 ")
-kdf_mini = kdf_sub.sort_values('program_title', ascending=True)
-print(kdf_mini['program_title'].head(10))
-
-# COMMAND ----------
-
-# transorm between pandas and spark with ease
-print("LIFE AS A PANDAS DATAFRAME...", kdf_mini.to_pandas())
-print("LIFE AS A SPARK DATAFRAME...", kdf_mini.to_spark())
-
-# or even other data-repesentative formats
-print("LIFE AS JSON...", kdf_mini.head(3).to_json(orient='records'))
-
-
-
-# COMMAND ----------
-
-# load a quick delta chunk for another test...
-kdf_eview = ks.DataFrame(eview_delta.limit(100))
-display(kdf_eview)
-
-# COMMAND ----------
-
-# what about filtering (as we did with spark?)
-# HINT: spark was this ... eview_delta.filter(col('final_network_name') == 'Showtime')
-
-# subsetting to rows where final_network_name is "Showtime"
-# TODO: how do we print out just showtime?
-kdf_eview = ks.DataFrame(eview_delta)
-## uncomment and fix!
-## display(kdf_eview[kdf_eview[XX] == YY)
-
-
-
-# COMMAND ----------
-
-# ANSWER -- there are several ways to get this done, just like in pandas
-display(kdf_eview[kdf_eview['final_network_name'] == "Showtime"].head(5))
-print(kdf_eview.where(kdf_eview['final_network_name'] == "Showtime"))
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Spark SQL Examples
+# MAGIC ## Spark SQL - Reading
 # MAGIC - Load directly into a sql table
 # MAGIC - Explore metastore
 # MAGIC - Run same queries as sql
@@ -273,55 +141,161 @@ print(kdf_eview.where(kdf_eview['final_network_name'] == "Showtime"))
 # COMMAND ----------
 
 # MAGIC %sql 
-# MAGIC show tables
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC **Create a delta table in the Databricks metastore directly from source data:**
+# MAGIC show tables like '%gold%'
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC CREATE TABLE IF NOT EXISTS  eview_20210308 USING DELTA LOCATION 'abfss://eview-delta@dsairgeneraleastus2sa.STORAGE/program_watch_start_date=20210308';
+# MAGIC --- Below is example to load from a spark-compatible source, but it's disabled for speed
+# MAGIC --- CREATE TABLE IF NOT EXISTS `sdf_ihx_gold2` USING DELTA LOCATION "abfss://mlworkshop2021@STORAGE/ihx/IHX_gold";
+# MAGIC --- Then select a few lines from this table
+# MAGIC --- SELECT * FROM `sdf_ihx_gold2` LIMIT 10;
 
 # COMMAND ----------
 
-# MAGIC %sql 
-# MAGIC show tables
+# MAGIC %sql
+# MAGIC --- Does it look similar to the other table?
+# MAGIC SELECT * FROM `sdf_ihx_gold` LIMIT 10;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC --- And clean up the table that we created
+# MAGIC DROP TABLE IF EXISTS `sdf_ihx_gold2`;
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Temp Table Cleanup
+# MAGIC These are shared clusters and notebooks themselves can be messy, so don't forget to drop your unused or completed temp tables when you're done!
+
+# COMMAND ----------
+
+# please don't forget to release resources if you're doing a lot in one notebook
+spark.catalog.dropTempView("sdf_ihx_gold")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Filtering and Selecting Data
+# MAGIC - During experiments, we probably don't want to view all of the data for a dataset
+# MAGIC - You may want to apply filters and other operations to reduce or display your results
+# MAGIC - For cleaner code and to avoid functional overlap, consider using operations like `F.col` and `F.lit`
+# MAGIC   - `F.col` will make sure that your command uses a specific column from the dataframe
+# MAGIC   - `F.lit` will drop in a literal string or number instead of potential confusion with a column name
+
+# COMMAND ----------
+
+# load our SQL functions for filteirng
+from pyspark.sql import functions as F
+
+# for cleaner code (and safety in operation, consider using F.col)
+# here, we display only item sin the 'SE' (south east region)
+sdf_sub = sdf_ihx_gold.filter(F.col('region') == F.lit('SE'))
+display(sdf_sub)
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Fitlering and selecting
+# MAGIC You don't need to make a long SQL or program query to accomplish most operations.  Instead, simple select and filter operations may slide the table (aka dataframe) enough for initial insepction.
+# MAGIC 
+# MAGIC - the `.filter(X == Y)` will select certain rows from your table
+# MAGIC - the `.select(X)` will select certain columns from your table to be used
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Challenge 1
+# MAGIC Using the hint above, try to find some information about competitors in one region...
+# MAGIC 1. Filter to those only in the South ('S') region
+# MAGIC 2. Selecting only the columns 'jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', and 'hsd_top_competitor_name' 
+
+# COMMAND ----------
+
+# here's a helper on how to write a list
+columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', 'hsd_top_competitor_name']
+
+### SOLUTION
+
+# here, we display only items in the 'SE' (south east region)
+sdf_sub = (sdf_ihx_gold
+    .filter(F.col('region') == F.lit('S'))
+    .select(columns_subset)
+)
+### SOLUTION
+display(sdf_sub)
 
 # COMMAND ----------
 
 # MAGIC %md 
-# MAGIC **We can create temporary views that store data for intermediary steps, without writing it out somewhere (NOTE: will not persist)**
+# MAGIC ## Lazy Operations
+# MAGIC One of the key differences between Pandas and Spark dataframes is eager versus lazy execution. In PySpark, operations are delayed until a result is actually needed in the pipeline. [A Brief Introduction to PySpark](https://towardsdatascience.com/a-brief-introduction-to-pyspark-ff4284701873).  In practicality this means your read, filtering, and other operatinos can be compounded onto a single dataframe and they won't be executed until needed.
+# MAGIC 
+# MAGIC This allows spark to optimize the operations and their order internally, but it also means there may be a slight delay in execution because everything isn't loaded into memory by default.
+# MAGIC 
+# MAGIC For cleaner code sharing among developers, we also have these two tips.
+# MAGIC   - use multiple lines to break up each operation (e.g. a select, group, filter, etc.)
+# MAGIC   - if using python, wrap your whole statement in parenthesis to avoid any line-wrap issues
 
 # COMMAND ----------
 
-# MAGIC %sql 
-# MAGIC CREATE OR REPLACE TEMPORARY VIEW tmp_showtime as select * from eview_20210308 where final_network_name = 'Showtime'
+# continuing from above, let's average prices from our competitors 
+sdf_prices = (sdf_sub
+    .groupBy(F.col('region'))
+    .agg(F.min('hsd_top_competitor_price').alias('min'), 
+        F.max('hsd_top_competitor_price').alias('max'))
+)
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC show views
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC select * from tmp_showtime limit 10
+# the above function should have been instant because there's no access to the output yet
+# the below command to display (or any others that access data) will force an execution
+display(sdf_prices)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC #### Cleanup
-# MAGIC Tables loaded as SQL (e.g. with "metadata" and viewable via hte left side) do use up memory.  So, consider deleting and unloading those that you don't use.  What's worse, when working on the shared compute clusters, those tables may confuse others or add clutter to the workspace, which may get frustrating if not kept tidy.
+# MAGIC ### Challenge 2
+# MAGIC The `groupBy` function selects one or more rows to group with and `agg` selects a [https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.aggregate.html](function) from a large [available list](https://sparkbyexamples.com/pyspark/pyspark-aggregate-functions/).
+# MAGIC 
+# MAGIC Using the hint above, let's quickly find aggregate prices across all the datal with a little more detail...
+# MAGIC 1. For all regions (the original dataset)...
+# MAGIC 2. Use the competitor (e.g. `hsd_top_competitor_name`) as a grouping column as well...
+# MAGIC 3. Find the average price for each competitor?
+# MAGIC 4. Filter out those columns that are null/empty.  *(this is provided for you)*
+# MAGIC 5. Sort by our competitor names.  *(this is provided for you)*
 
 # COMMAND ----------
 
-# MAGIC %sql 
-# MAGIC select program_title, count(*) as view_count from tmp_showtime group by program_title
+## SOLUTION
+
+# continuing from above, let's average prices from our competitors 
+sdf_prices = (sdf_ihx_gold
+    .groupBy(F.col('region'), F.col('hsd_top_competitor_name'))   # group by 
+    .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
+        F.max('hsd_top_competitor_price').alias('max'), 
+        F.avg('hsd_top_competitor_price').alias('average'))
+    .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
+    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
+)
+## SOLUTION
+
+display(sdf_prices)
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC select program_title, count(*) as view_count from tmp_showtime group by program_title order by view_count desc limit 15
+# MAGIC %md
+# MAGIC Thanks for walking thorugh this intro to data reads.  We just scratched the surface for data manipulation and haven't considered other topics like data ETL, visualization, or ML.
+# MAGIC 
+# MAGIC When you're ready, head on to the next script `1b_DATA_WRITE_EXAMPLES` that includes just a few examples of how to write your data in Spark.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Done with Reads!
+# MAGIC Still want more or have questions about more advanced topics?  Check out the directory `extra_credit` to find a few different notebooks that have more useful details.
+# MAGIC 
+# MAGIC - `1_PERSONAL_CLUSTERS` - See how to create and manager your own cluster for easier library installation (out of scope for this workshop)
+# MAGIC - `1_KOALAS_AND_PANDAS` - Familiar with data science and ML in python already? Check out the spark analog to Pandas, Koalas, in this notebook.

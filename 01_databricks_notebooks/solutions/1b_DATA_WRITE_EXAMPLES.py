@@ -16,7 +16,7 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./0_WORKSHOP_CONSTANTS
+# MAGIC %run ../utilities/WORKSHOP_CONSTANTS
 
 # COMMAND ----------
 
