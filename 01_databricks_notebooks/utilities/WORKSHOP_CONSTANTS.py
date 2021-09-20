@@ -7,6 +7,8 @@
 
 # our root directory for access in databricks
 MLW_DATA_ROOT = "abfss://mlworkshop2021@STORAGE"
+# absolute reference for the above storage container
+MLW_DATA_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"
 
 # the "gold" data reference - in CDO parlence, this generally meant the data has been cleaned and indexed optimally
 IHX_GOLD = f"{MLW_DATA_ROOT}/ihx/IHX_gold"
@@ -31,3 +33,12 @@ USER_ID = USER_PATH.split('@')[0]   # just ATTID
 NOTEBOOK_BASE = f"/Users/{USER_PATH}"   # this is where the experiments will appear in your workspace
 EXPERIMENT_BASE = f"/user/{USER_ID}/experiments"   # this is a mounted file path that will store spark artifacts (an adopted constant for AIaaS)
 REPO_BASE = f"/Repos/{USER_PATH}"   # this is where the repos may appear by defauly
+
+# COMMAND ----------
+
+# the last command assumes you make a scratch directory that you own (or can write to) with your ATTID
+# for instructions on how to create your own scratch, head to notebook `1b_DATA_WRITE_EXAMPLES`
+SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
+
+# this may not work for sure, but let's try to format an Azure Portal for above...
+SCRATCH_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/{USER_ID}/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"

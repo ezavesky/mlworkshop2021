@@ -299,3 +299,4 @@ display(sdf_prices)
 # MAGIC 
 # MAGIC - `1_PERSONAL_CLUSTERS` - See how to create and manager your own cluster for easier library installation (out of scope for this workshop)
 # MAGIC - `1_KOALAS_AND_PANDAS` - Familiar with data science and ML in python already? Check out the spark analog to Pandas, Koalas, in this notebook.
+# MAGIC - `1_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
