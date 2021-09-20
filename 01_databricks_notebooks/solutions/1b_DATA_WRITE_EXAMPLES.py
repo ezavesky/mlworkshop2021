@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Part 1 - MLWorkshop2021
-# MAGIC This noteobook is part of the [2021 ML Workshop](https://INFO_SITE/cdo/events/internal-events/90dea45e-1454-11ec-8dca-7d45a6b8dd2a) (sponsored by the Software Symposium)
+# MAGIC This notebook is part of the [2021 ML Workshop](https://INFO_SITE/cdo/events/internal-events/90dea45e-1454-11ec-8dca-7d45a6b8dd2a) (sponsored by the Software Symposium)
 
 # COMMAND ----------
 
@@ -56,14 +56,15 @@
 # NOTE: You may not be able to run the first command this due to privilages, but if you've created a 
 if False:
     # example of loading CSV and writing to a ADLSg2 location in delta format
-    sdf_ihx = spark.read.format('csv').option('header', True).load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+    # NOTE the critical 'inferSchema' option, which will attempt to transform into more than string types
+    sdf_ihx = spark.read.format('csv').option("inferSchema", "true").option('header', True).load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
     IHX_GOLD_UNPARTITIONED = f"{IHX_GOLD}-unpartitioned"
     # you may need to delete a prior version because delta will otherwise optimize it as an update
     try:
         dbutils.fs.rm(IHX_GOLD, True)   # recursively delete what was there before
         dbutils.fs.rm(IHX_GOLD_UNPARTITIONED, True)
     except Excpetion as e:
-        print("Error clearing parititon, maybe it didn't exist...")
+        fn_log("Error clearing parititon, maybe it didn't exist...")
 
     # write to the space used by the workshop with no parition configuraiton
     sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_GOLD_UNPARTITIONED}")
@@ -76,23 +77,23 @@ if False:
 # COMMAND ----------
 
 list_files = dbutils.fs.ls(IHX_GOLD_UNPARTITIONED)
-print(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_GOLD_UNPARTITIONED}'")
+fn_log(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_GOLD_UNPARTITIONED}'")
 for file_ref in list_files[:5]:   # just pring the first five
-    print(f"{file_ref.name}: {file_ref.size} bytes")
-print("")
+    fn_log(f"{file_ref.name}: {file_ref.size} bytes")
+fn_log("")
     
 list_files = dbutils.fs.ls(IHX_GOLD)
-print(f"## Files in region-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
+fn_log(f"## Files in region-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
 for file_ref in list_files[:5]:   # just pring the first five
-    print(f"{file_ref.name}: {file_ref.size} bytes")
+    fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 
 # COMMAND ----------
 
 path_sub = f"{IHX_GOLD}/{list_files[-1].name}"
 list_files_sub = dbutils.fs.ls(path_sub)
-print(f"## Files in region-partitioned format... {len(list_files_sub)} total from path '{path_sub}'")
+fn_log(f"## Files in region-partitioned format... {len(list_files_sub)} total from path '{path_sub}'")
 for file_ref in list_files_sub[:5]:   # just pring the first five
-    print(f"{file_ref.name}: {file_ref.size} bytes")
+    fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 
 # COMMAND ----------
 
@@ -134,19 +135,19 @@ import datetime as dt
 
 try:
     list_scratch = dbutils.fs.ls(SCATCH_ROOT)
-    print(f"## Files in user scratch ... {len(list_scratch)} total from path '{SCATCH_ROOT}'")
+    fn_log(f"## Files in user scratch ... {len(list_scratch)} total from path '{SCATCH_ROOT}'")
     for file_ref in list_scratch[:5]:   # just pring the first five
-        print(f"{file_ref.name}: {file_ref.size} bytes")
-    print("")
+        fn_log(f"{file_ref.name}: {file_ref.size} bytes")
+    fn_log("")
 except Exception as e:
-    print(f"Your scratch may not exist ... '{e}'")
+    fn_log(f"Your scratch may not exist ... '{e}'")
 
 try:
     dbutils.fs.put(f"{SCATCH_ROOT}/test-file.txt", f"File updated... {dt.datetime.now()}", True)
 except Exception as e:
-    print(f"Failed to create a place holder file, does your scratch exist? ... '{e}'")
+    fn_log(f"Failed to create a place holder file, does your scratch exist? ... '{e}'")
 
-print(f"\nIf everything worked, you should be able to open this url (you'll need to copy/paste)....\n\n{SCRATCH_URL}")
+fn_log(f"\nIf everything worked, you should be able to open this url (you'll need to copy/paste)....\n\n{SCRATCH_URL}")
 
 # COMMAND ----------
 
@@ -179,13 +180,20 @@ def write_csv_single(sdf, path_target):
     dbutils.fs.rm(path_target, recurse=True)
     # move temp file to single location
     dbutils.fs.mv(path_temp, path_target)
-    print(f"Wrote to CSV ... {path_target} ({stat_file[1]} bytes), check out the URL above for reference.")
+    fn_log(f"Wrote to CSV ... {path_target} ({stat_file[1]} bytes), check out the URL above for reference.")
     
 
 path_csv_example = f"{SCATCH_ROOT}/mlworkshop2021_example.csv"
 write_csv_single(sdf_random, path_csv_example)
 
     
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Thanks for walking through this intro to data writes.  We demonstrated how to read and write to a personal scratch space with a few tips on developing optimal indexing when you write and creating individual CSVs.
+# MAGIC 
+# MAGIC When you're ready, head on to the next script `1c_COMPUTING_FEATURES` where we begin to create a feature pipeline in spark.
 
 # COMMAND ----------
 

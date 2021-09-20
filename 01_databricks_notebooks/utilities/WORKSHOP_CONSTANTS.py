@@ -13,11 +13,18 @@ MLW_DATA_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlad
 # the "gold" data reference - in CDO parlence, this generally meant the data has been cleaned and indexed optimally
 IHX_GOLD = f"{MLW_DATA_ROOT}/ihx/IHX_gold"
 
+# now some path definitions for our feature vectorization stages
+IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
+IHX_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+
 # COMMAND ----------
 
 # MAGIC %r
 # MAGIC MLW_DATA_ROOT <- "abfss://mlworkshop2021@STORAGE"
 # MAGIC IHX_GOLD <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
+# MAGIC 
+# MAGIC 
+# MAGIC # Getting errors running on another cluster? Consider commenting out this cell...
 
 # COMMAND ----------
 
@@ -40,5 +47,54 @@ REPO_BASE = f"/Repos/{USER_PATH}"   # this is where the repos may appear by defa
 # for instructions on how to create your own scratch, head to notebook `1b_DATA_WRITE_EXAMPLES`
 SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
 
+# feature processing paths
+SCRATCH_IHX_VECTORIZER_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_Vectorizer"
+SCRATCH_IHX_MINMAX_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+
+
 # this may not work for sure, but let's try to format an Azure Portal for above...
 SCRATCH_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/{USER_ID}/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"
+
+# COMMAND ----------
+
+# In this section, we define a custom "print" function that can log to python logger or the notebook console
+import logging
+import os
+IS_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
+
+# from pyspark.context import SparkContext
+# from pyspark.sql.session import SparkSession
+
+try:
+    if logger is None:
+        pass
+except Exception as e:
+    logger = None
+
+if logger is None:
+    logger = logging.getLogger(__name__)   
+    if not IS_DATABRICKS:
+        from .core_constants import CREDENTIALS
+    else:
+        from sys import stderr, stdout
+        # writing to stdout
+        handler = logging.StreamHandler(stdout)
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
+    
+        # See this thread for logging in databricks - https://stackoverflow.com/a/34683626; https://github.com/mspnp/spark-monitoring/issues/50#issuecomment-533778984
+        log4jLogger = spark._jvm.org.apache.log4j
+#     logger = log4jLogger.Logger.getLogger(__name__)  # --- disabled for whitelisting in 8.3 ML 
+
+def fn_log(str_print):   # place holder for logging
+  logger.info(str_print)
+  print(str_print)
+
+# COMMAND ----------
+
+def quiet_delete(path_storage):
+    try:
+        dbutils.fs.rm(path_storage, True)   # recursively delete what was there before
+    except Excpetion as e:
+        fn_log(f"Error clearing parititon '{path_storage}', maybe it didn't exist...")
+

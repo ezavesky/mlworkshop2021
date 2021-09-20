@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Part 1 - MLWorkshop2021
-# MAGIC This noteobook is part of the [2021 ML Workshop](https://INFO_SITE/cdo/events/internal-events/90dea45e-1454-11ec-8dca-7d45a6b8dd2a) (sponsored by the Software Symposium)
+# MAGIC This notebook is part of the [2021 ML Workshop](https://INFO_SITE/cdo/events/internal-events/90dea45e-1454-11ec-8dca-7d45a6b8dd2a) (sponsored by the Software Symposium)
 
 # COMMAND ----------
 
@@ -53,9 +53,9 @@
 
 # print the contents of a directory we'll be using for this workshop
 try:
-    print(dbutils.fs.ls(MLW_DATA_ROOT))   
+    fn_log(dbutils.fs.ls(MLW_DATA_ROOT))   
 except Exception as e:
-    print(f"If you got an error, the most likely problem permissions! '{e}'")
+    fn_log(f"If you got an error, the most likely problem permissions! '{e}'")
 
 # COMMAND ----------
 
@@ -287,7 +287,7 @@ display(sdf_prices)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Thanks for walking thorugh this intro to data reads.  We just scratched the surface for data manipulation and haven't considered other topics like data ETL, visualization, or ML.
+# MAGIC Thanks for walking through this intro to data reads.  We just scratched the surface for data manipulation and haven't considered other topics like data ETL, visualization, or ML.
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1b_DATA_WRITE_EXAMPLES` that includes just a few examples of how to write your data in Spark.
 
