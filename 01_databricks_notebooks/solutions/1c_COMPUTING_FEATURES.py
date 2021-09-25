@@ -28,8 +28,10 @@
 # COMMAND ----------
 
 # load delta dataframe (it should be the same!)
-# flip over to notebook 'B' to see how this was written if you're curious!
+# flip over to notebook '1B' to see how this was written if you're curious!
 sdf_ihx_gold = spark.read.format('delta').load(f"{IHX_GOLD}")
+
+sdf_ihx_gold.printSchema()
 display(sdf_ihx_gold)
 
 # COMMAND ----------
@@ -45,7 +47,7 @@ display(sdf_ihx_gold)
 # COMMAND ----------
 
 from pyspark.sql import types as T
-def get_feature_column_types(sdf_data):
+def get_feature_column_types(sdf_data, exclude_cols=[]):
     """
     Method to retrieve the column names requested for a feature set as well as the
     """
@@ -55,8 +57,8 @@ def get_feature_column_types(sdf_data):
     # select columns that contain numeric data
     numeric_types = [T.IntegerType, T.BooleanType, T.DecimalType, T.DoubleType, T.FloatType]
     string_types = [T.StringType]
-    cols_num = [c.name for c in schema_types if (type(c.dataType) in numeric_types) ]
-    cols_str = [c.name for c in schema_types if (type(c.dataType) in string_types) ]
+    cols_num = [c.name for c in schema_types if (type(c.dataType) in numeric_types) and not c.name in exclude_cols ]
+    cols_str = [c.name for c in schema_types if (type(c.dataType) in string_types) and not c.name in exclude_cols ]
     feature_sets = {"numeric": cols_num, "string": cols_str,
                     "invalid": list(set(feature_set_config) - set(cols_str + cols_num))}
     # just for debugging, isn't really needed; find types of those that were requested but were invalid
@@ -65,7 +67,10 @@ def get_feature_column_types(sdf_data):
     fn_log(f"Feature count: {len(feature_sets['string'] + feature_sets['numeric'])} of {len(feature_set_config)} requested features")
 
     return feature_sets
-dict_features = get_feature_column_types(sdf_ihx_gold)
+
+skip_columns = ['assignment_start_dt', IHX_COL_INDEX, IHX_COL_LABEL, 'is_train']
+dict_features = get_feature_column_types(sdf_ihx_gold, skip_columns)
+fn_log(f"### These columns were skipped: {dict_features['invalid']}\n\n")
 fn_log(f"### Are these features strings? {dict_features['string']}\n\n")
 fn_log(f"### Are these features numeric? {dict_features['numeric']}\n\n")
 
@@ -115,7 +120,11 @@ feature_cols_list = []
 
 # MAGIC %md
 # MAGIC ## String Features
-# MAGIC String features can be encoded as "one hot" (e.g. make multiple unique column for each unique value) or as a "string index".  We'll opt for the string index option (by [StringIndexer](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StringIndexer.html)) in this section.
+# MAGIC String features (or non-numeric features) generally fall into two categories: 
+# MAGIC * categorical features - a series of cateogires of a single features, no intrinsic ordering (blue, purple, red)
+# MAGIC * ordinal features - a series of of categories of a single feature, with relative ordering (ancient, medieval, industrial, information)
+# MAGIC 
+# MAGIC These features can be encoded as "one hot" (e.g. make multiple unique column for each unique value) or as a "string index".  We'll opt for the string index option (by [StringIndexer](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StringIndexer.html)) in this section.
 # MAGIC * Column=`dtv_flag`...
 # MAGIC   * value "No" -> 0
 # MAGIC   * value "Unkown" -> 1
@@ -126,9 +135,10 @@ feature_cols_list = []
 from pyspark.ml.feature import StringIndexer
 
 for col_name in dict_features['string']:
-    string_indexer = StringIndexer(inputCol=col_name, outputCol=f"{col_name}_INT", stringOrderType='alphabetAsc')
+    col_name_int = f"{col_name}_INT"
+    string_indexer = StringIndexer(inputCol=col_name, outputCol=col_name_int, stringOrderType='alphabetAsc', handleInvalid='skip')
     stages_spark.append(string_indexer)
-    feature_cols_list.append(col_name)
+    feature_cols_list.append(col_name_int)
 fn_log(f"Count of StringIndexer candidate columns {len(feature_cols_list)} ...")
 
 # COMMAND ----------
@@ -139,6 +149,29 @@ fn_log(f"Count of StringIndexer candidate columns {len(feature_cols_list)} ...")
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Challenge 3
+# MAGIC Why do we need to crunch features into a single vector?  Underlying learning models expect continuous memory blocks and don't generally care about the input feature names (or structure).  So, at training/evaluation time, your data will be stripped and transformed into blocks of memory that can be sent to one or more worker nodes for class evaluation.
+# MAGIC 
+# MAGIC * Raw DataFrame Format: 
+# MAGIC   * Row 1: [ Feature 1 ][ Feature 2 ][ Feature 3 ][ Feature 4 ][ Feature 5 ][ Feature 6 ] ... [ Feature N ]
+# MAGIC   * Row 2: [ Feature 1 ][ Feature 2 ][ Feature 3 ][ Feature 4 ][ Feature 5 ][ Feature 6 ] ... [ Feature N ]
+# MAGIC   * ...
+# MAGIC * Concatenated Array Format: 
+# MAGIC   * [[ Feature 1, Feature 2, Feature 3, Feature 4, Feature 5, Feature 6, ..., Feature N ]
+# MAGIC   *  [ Feature 1, Feature 2, Feature 3, Feature 4, Feature 5, Feature 6, ..., Feature N ]
+# MAGIC   * ...
+# MAGIC   * ]
+# MAGIC 
+# MAGIC Using the hint above, populate the right arguments for the vector assembler...
+# MAGIC 1. Use the list of input features that we've been creating...
+# MAGIC 2. Inform the assmbler to **skip** bad values (we'll take care of this elsewhere)
+# MAGIC 3. Output to a single column named `vectorized`
+
+# COMMAND ----------
+
+## SOLUTION
+
 from pyspark.ml.feature import VectorAssembler
 
 # define our hole set of columns as combination of stringindexed + numeric
@@ -148,6 +181,8 @@ col_vectorized = "vectorized"
 assembler = VectorAssembler(inputCols=feature_cols_list, outputCol=col_vectorized, handleInvalid='skip')
 stages_spark.append(assembler)
 fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
+
+## SOLUTION
 
 # COMMAND ----------
 
@@ -162,71 +197,48 @@ fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Normalization and Storing the Pipeline
-# MAGIC Finally, we will apply a [normalization transformer](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) to our features.  Most learning methods work best with either L1 or L2 normalization instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *both* in our classifier evaluation stage.
-# MAGIC 
+# MAGIC ## Storing the Feature Pipeline
 # MAGIC After completing our feature processing pipeline, we'll write it!  Lucky for us, these objects are all spark-natives, so we can even persist them to cloud storage without batting an eye.  You can even check-out the individual stages (saved with a little metadata) in the [Azure Storage Continer](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None).
+# MAGIC 
+# MAGIC One step you may consider is [feature normalization](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) to our features.  Most learning methods work best with either L1 or L2 normalization instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *all three* in our classifier evaluation stage: no normalization, L2, and min/max
 
 # COMMAND ----------
 
 from pyspark.ml.feature import Normalizer, MinMaxScaler
 from pyspark.ml import Pipeline
-col_normalized = "normalized"
 
-norm = Normalizer(inputCol=col_vectorized, outputCol=col_normalized)
-pipe_normalized = Pipeline(stages=stages_spark + [norm])
+pipe_vectorized = Pipeline(stages=stages_spark)
 
-minmax = MinMaxScaler(inputCol=col_vectorized, outputCol=col_normalized)
+norm = Normalizer(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
+pipe_l2 = Pipeline(stages=stages_spark + [norm])
+
+minmax = MinMaxScaler(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
 pipe_minmax = Pipeline(stages=stages_spark + [minmax])
 
 # SPECIAL NOTE: These pipelines are **UNTRAINED**.  Training them is a simple matter of running data through the `fit()` function, but we're not doing that here for simplicity.
 
-if False:  # again, these are for the workshop admin only; hopefully you can write your own to scratch below!
+if is_workshop_admin():  # again, these are for the workshop admin only; hopefully you can write your own to scratch below!
     quiet_delete(IHX_VECTORIZER_PATH)
-    pipe_normalized.write().save(IHX_VECTORIZER_PATH)
+    pipe_vectorized.write().save(IHX_VECTORIZER_PATH)
     quiet_delete(IHX_MINMAX_PATH)
     pipe_minmax.write().save(IHX_MINMAX_PATH)
+    quiet_delete(IHX_NORM_L2_PATH)
+    pipe_l2.write().save(IHX_NORM_L2_PATH)
 
 # attempt to write to user scratch space!
 try: 
     quiet_delete(SCRATCH_IHX_VECTORIZER_PATH)
-    pipe_normalized.write().save(SCRATCH_IHX_VECTORIZER_PATH)
+    pipe_vectorized.write().save(SCRATCH_IHX_VECTORIZER_PATH)
     quiet_delete(SCRATCH_IHX_MINMAX_PATH)
     pipe_minmax.write().save(SCRATCH_IHX_MINMAX_PATH)
+    quiet_delete(SCRATCH_IHX_L2_PATH)
+    pipe_l2.write().save(SCRATCH_IHX_L2_PATH)
     fn_log(f"Wrote to your scratch space, you can check it out on the portal... \n{SCRATCH_URL}")
 except Exception as e:
     fn_log(f"Uh oh, did you create a user scratch space? If not, that's okay, you can use the workshop's data! (Error {e})")
 
 
-# COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Challenge 3
-# MAGIC The `groupBy` function selects one or more rows to group with and `agg` selects a [https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.aggregate.html](function) from a large [available list](https://sparkbyexamples.com/pyspark/pyspark-aggregate-functions/).
-# MAGIC 
-# MAGIC Using the hint above, let's quickly find aggregate prices across all the datal with a little more detail...
-# MAGIC 1. For all regions (the original dataset)...
-# MAGIC 2. Use the competitor (e.g. `hsd_top_competitor_name`) as a grouping column as well...
-# MAGIC 3. Find the average price for each competitor?
-# MAGIC 4. Filter out those columns that are null/empty.  *(this is provided for you)*
-# MAGIC 5. Sort by our competitor names.  *(this is provided for you)*
-
-# COMMAND ----------
-
-## SOLUTION
-
-# continuing from above, let's average prices from our competitors 
-sdf_prices = (sdf_ihx_gold
-    .groupBy(F.col('region'), F.col('hsd_top_competitor_name'))   # group by 
-    .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
-        F.max('hsd_top_competitor_price').alias('max'), 
-        F.avg('hsd_top_competitor_price').alias('average'))
-    .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
-    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
-)
-## SOLUTION
-
-display(sdf_prices)
 
 # COMMAND ----------
 

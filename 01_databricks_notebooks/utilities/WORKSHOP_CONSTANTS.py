@@ -12,17 +12,25 @@ MLW_DATA_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlad
 
 # the "gold" data reference - in CDO parlence, this generally meant the data has been cleaned and indexed optimally
 IHX_GOLD = f"{MLW_DATA_ROOT}/ihx/IHX_gold"
+IHX_GOLD_TESTING = f"{IHX_GOLD}-testing"
+
+# some feature column names
+IHX_COL_VECTORIZED = "vectorized"
+IHX_COL_NORMALIZED = "normalized"
+IHX_COL_INDEX = "jobid"
+IHX_COL_LABEL = "final_response"
+IHX_COL_PREDICT_BASE = "predict_{base}"
 
 # now some path definitions for our feature vectorization stages
 IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
-IHX_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+IHX_NORM_L2_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_L2Normalizer"
+IHX_NORM_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
 
 # COMMAND ----------
 
 # MAGIC %r
 # MAGIC MLW_DATA_ROOT <- "abfss://mlworkshop2021@STORAGE"
 # MAGIC IHX_GOLD <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
-# MAGIC 
 # MAGIC 
 # MAGIC # Getting errors running on another cluster? Consider commenting out this cell...
 
@@ -50,7 +58,7 @@ SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
 # feature processing paths
 SCRATCH_IHX_VECTORIZER_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_Vectorizer"
 SCRATCH_IHX_MINMAX_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_MinMaxScaler"
-
+SCRATCH_IHX_L2_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_L2Normalizer"
 
 # this may not work for sure, but let's try to format an Azure Portal for above...
 SCRATCH_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/{USER_ID}/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"
@@ -87,8 +95,11 @@ if logger is None:
 #     logger = log4jLogger.Logger.getLogger(__name__)  # --- disabled for whitelisting in 8.3 ML 
 
 def fn_log(str_print):   # place holder for logging
-  logger.info(str_print)
-  print(str_print)
+    logger.info(str_print)
+    print(str_print)
+
+def is_workshop_admin():
+    return USER_ID in ['ez2685']
 
 # COMMAND ----------
 

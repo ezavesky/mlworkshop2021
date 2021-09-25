@@ -54,24 +54,48 @@
 # this code is commented out because it's just provided for reference...
 #   namely, how we got the IHX data into an ADLSg2 storage container
 # NOTE: You may not be able to run the first command this due to privilages, but if you've created a 
-if False:
-    # example of loading CSV and writing to a ADLSg2 location in delta format
-    # NOTE the critical 'inferSchema' option, which will attempt to transform into more than string types
-    sdf_ihx = spark.read.format('csv').option("inferSchema", "true").option('header', True).load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
-    IHX_GOLD_UNPARTITIONED = f"{IHX_GOLD}-unpartitioned"
+IHX_GOLD_UNPARTITIONED = f"{IHX_GOLD}-unpartitioned"
+if is_workshop_admin():
     # you may need to delete a prior version because delta will otherwise optimize it as an update
     try:
         dbutils.fs.rm(IHX_GOLD, True)   # recursively delete what was there before
+        dbutils.fs.rm(IHX_GOLD_TESTING, True)
         dbutils.fs.rm(IHX_GOLD_UNPARTITIONED, True)
     except Excpetion as e:
         fn_log("Error clearing parititon, maybe it didn't exist...")
 
+    # example of loading CSV and writing to a ADLSg2 location in delta format
+    # NOTE the critical 'inferSchema' option, which will attempt to transform into more than string types
+    # look here for more options... https://github.com/databricks/spark-csv
+
     # write to the space used by the workshop with no parition configuraiton
+    sdf_ihx = (
+        spark.read.format('csv')
+        .option('nullValue', 'NULL')
+        .option("inferSchema", "true")
+        .option("sep", "\t")
+        .option('header', True)
+        .load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+    )
     sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_GOLD_UNPARTITIONED}")
-
     # scratch space under your user ID, the seccond command should work.
-    sdf_ihx.repartition('region').write.format('delta').partitionBy('region').mode('overwrite').save(f"{IHX_GOLD}")
+    (sdf_ihx.repartition('assignment_start_month')
+         .write.format('delta').partitionBy('assignment_start_month')
+         .mode('overwrite').save(f"{IHX_GOLD}"))
 
+    # now read and repartition the testing data as well
+    sdf_ihx_testing = (
+        spark.read.format('csv')
+        .option('nullValue', 'NULL')
+        .option("inferSchema", "true")
+        .option("sep", "\t")
+        .option('header', True)
+        .load(f"{MLW_DATA_ROOT}/ihx/IHX-testing.csv")
+    )    
+    # scratch space under your user ID, the seccond command should work.
+    (sdf_ihx_testing.repartition('assignment_start_month')
+         .write.format('delta').partitionBy('assignment_start_month')
+         .mode('overwrite').save(f"{IHX_GOLD_TESTING}"))
 
 
 # COMMAND ----------
@@ -83,7 +107,7 @@ for file_ref in list_files[:5]:   # just pring the first five
 fn_log("")
     
 list_files = dbutils.fs.ls(IHX_GOLD)
-fn_log(f"## Files in region-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
+fn_log(f"## Files in month-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
 for file_ref in list_files[:5]:   # just pring the first five
     fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 
@@ -100,7 +124,18 @@ for file_ref in list_files_sub[:5]:   # just pring the first five
 # MAGIC %md
 # MAGIC So what we observe is that the partition creates subfolders and forces the data for a certain value to be grouped into one partition.  It looks like the file sizes are different and ther are fewer partitions, but if, as SMEs of the data, we have intuition about a natural data partition it may be advantagous to use it.  
 # MAGIC 
-# MAGIC For example, in an ever-growing logging, telemtry, or behavioral dataset, it may make the most sense to use one of the time-based fields as a primary index.
+# MAGIC For example, in an ever-growing logging, telemtry, or behavioral dataset, it may make the most sense to use one of the time-based fields as a primary index.  We plotted that distribution using the `assignment_start_month` field below.
+
+# COMMAND ----------
+
+from pyspark.sql import functions as F
+sdf_ihx = spark.read.format('delta').load(f"{IHX_GOLD}")
+display(sdf_ihx
+   .groupBy('assignment_start_month')
+   .agg(F.count(F.col('assignment_start_month')).alias('count'))
+   .toPandas().set_index('assignment_start_month').sort_index()
+   .plot.bar()
+)
 
 # COMMAND ----------
 

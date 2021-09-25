@@ -62,9 +62,9 @@ except Exception as e:
 # MAGIC %md
 # MAGIC ## Interpreting Cloud Data URLs
 # MAGIC The same resource may be accessible via different tools in different formats.  The below examples point to the same resource (the one we're using in this workshop) but allow access through different clients.
-# MAGIC * ADLSg2 (databricks, data tools) - `abfss://mlworkshop2021@STORAGE/`
+# MAGIC * ADLSg2 (databricks, data tools) - `abfss://mlworkshop2021@STORAGE/ihx/`
 # MAGIC * Azure portal (browser) - `https://PORTAL/#blade/Microsoft_Azure_Storage/....`
-# MAGIC * azcopy url (CLI, custom apps) - `https://blackbirdproddatastore.blob.core.windows.net/mlworkshop2021`
+# MAGIC * azcopy url (CLI, custom apps) - `https://blackbirdproddatastore.blob.core.windows.net/mlworkshop2021/ihx/`
 # MAGIC 
 # MAGIC Although you can't move or delete items, you can view, download, and upload (where permissions allow) through the Azure Portal.  Check out this [Azure Portal URL](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None) to view the workshop's primary data store.
 
@@ -119,7 +119,7 @@ sdf_ihx_gold.createOrReplaceTempView("sdf_ihx_gold")
 
 # MAGIC %r 
 # MAGIC # easily moving from ABFSS (cloud data sets into R can be done by temporarily registering data in a spark session)
-# MAGIC # require(SparkR)
+# MAGIC require(SparkR)
 # MAGIC r_jobs <- sql("SELECT jobid FROM sdf_ihx_gold limit 10")
 # MAGIC display(r_jobs)
 # MAGIC 
