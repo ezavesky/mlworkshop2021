@@ -26,6 +26,13 @@ IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
 IHX_NORM_L2_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_L2Normalizer"
 IHX_NORM_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
 
+# intermediate data from vecctorization
+IHX_GOLD_TRANSFORMED = f"{MLW_DATA_ROOT}/ihx/IHX_gold_transformed"
+IHX_GOLD_TRANSFORMED_TEST = f"{IHX_GOLD_TRANSFORMED}-test"
+
+# full evaluator variables
+IHX_TRAINING_SAMPLE_FRACTION = 0.11   # reduce training set from 429k to about 10k for speed during the workshop
+
 # COMMAND ----------
 
 # MAGIC %r
@@ -47,7 +54,8 @@ USER_ID = USER_PATH.split('@')[0]   # just ATTID
 
 NOTEBOOK_BASE = f"/Users/{USER_PATH}"   # this is where the experiments will appear in your workspace
 EXPERIMENT_BASE = f"/user/{USER_ID}/experiments"   # this is a mounted file path that will store spark artifacts (an adopted constant for AIaaS)
-REPO_BASE = f"/Repos/{USER_PATH}"   # this is where the repos may appear by defauly
+REPO_BASE = f"/Repos/{USER_PATH}"   # this is where the repos may appear by default
+MLFLOW_EXPERIMENT = "MLWorkshop2021"   # default experiment name for centralized mlflow tracking
 
 # COMMAND ----------
 
@@ -94,6 +102,9 @@ if logger is None:
         log4jLogger = spark._jvm.org.apache.log4j
 #     logger = log4jLogger.Logger.getLogger(__name__)  # --- disabled for whitelisting in 8.3 ML 
 
+# also truncate GIT errors
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
 def fn_log(str_print):   # place holder for logging
     logger.info(str_print)
     print(str_print)
@@ -108,4 +119,3 @@ def quiet_delete(path_storage):
         dbutils.fs.rm(path_storage, True)   # recursively delete what was there before
     except Excpetion as e:
         fn_log(f"Error clearing parititon '{path_storage}', maybe it didn't exist...")
-
