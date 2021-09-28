@@ -1,9 +1,4 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # STILL NEEDS TO BE UPDATED FOR WORKSHOP!
-
-# COMMAND ----------
-
 # MAGIC %md 
 # MAGIC 
 # MAGIC # Data in DEEP
@@ -127,20 +122,3 @@ writeDataframe(df, path_write, branch="master")
 # MAGIC   - Optionally, tag DEEP team members who are working on the project with you
 # MAGIC   - Here's [an example ticket](https://paloma.palantirfoundry.com/workspace/issues-app/issue/ri.issues.main.issue.ddabc48a-e5ae-48e8-9b61-e666f312879f) for reference, but don't worry if you can't read this one, it just reiterates the above items.
 # MAGIC - We hope to have a more automated way to get data in, but honestly your the DEEP employees that you interface should be able to get most of the company standard / required sources imported for you.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC 
-# MAGIC # PySpark and Databricks Optimizations
-# MAGIC Confused about whether you should run a [map function](https://www.educba.com/pyspark-map/), [apply](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.applyInPandas.html), or [pandas_udf](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.pandas_udf.html?highlight=pandas%20udf) function?  **Answer: Use PandasUDF**
-# MAGIC 
-# MAGIC ** Here's the code repo for examples -- [JD's "Learn Spark" instance](https://dev.azure.com/dsair/general/_git/learn_spark) ** 
-# MAGIC 
-# MAGIC We'll break to another presentation but these are the takeaways...
-# MAGIC 
-# MAGIC - try to use bulk operations where possible for memory optimization
-# MAGIC - pandas UDFs are faster than spark's map and lambda tasks 
-# MAGIC - for compute-hungry tasks, consider GPU versus regular CPU; 
-# MAGIC   - **NOTE** if your data source is *NOT* optimized or is remote, you may not see these benefits
-# MAGIC - if you're looking for a longer discussion on this topic [head to the TnTT discussion](https://wiki.SERVICE_SITE/display/DSAI/TnTT2021#TnTT2021-Jianxiong-SparkOptimizationforDeepLearningModels) and [relevant slides](https://wiki.SERVICE_SITE/download/attachments/1377309814/spark_optimization_r4.pdf?version=1&modificationDate=1629921040000&api=v2)
