@@ -170,19 +170,19 @@ f.close()
 
 # COMMAND ----------
 
-#### SOLUTION #### 
+#### CHALLENGE #### 
 
 # write some various metrics, params, etc.
-mlflow.set_tag("s.release", "1.2.3")
-mlflow.log_param("column-choice", col_features)
-mlflow.log_param("sample_fraction", IHX_TRAINING_SAMPLE_FRACTION)
-mlflow.log_metric("user-provided", score_eval)
+mlflow.set_tag( , "1.2.3")
+mlflow.log_param( , col_features)
+mlflow.log_param("sample_fraction",  )
+mlflow.log_metric("user-provided",  )
 mlflow.log_text(f"{dt.datetime.now()}: this would be a complete log to save...", 'log_text.txt')
 
 # plot a figure and log it to mlflow
-mlflow.log_figure(fig, "xfold-gcd.png")
+mlflow.log_figure( , "xfold-gcd.png")
 
-#### SOLUTION #### 
+#### CHALLENGE #### 
 
 # you can also write a temp file...
 mlflow.log_artifact(f.name, 'temp_text.txt')

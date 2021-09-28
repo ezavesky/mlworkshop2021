@@ -51,11 +51,31 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
         cf.setElasticNetParam(0.8)
         cf.setFamily("multinomial")
         grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
-            .addGrid(cf.maxIter, [10, 15, 20] if param_grid else [cf.getMaxIter()])
-            .addGrid(cf.tol, [1e-4, 1e-6, 1e-8] if param_grid else [cf.getTol()])
+            .addGrid(cf.maxIter, [10, 15] if param_grid else [cf.getMaxIter()])
+            .addGrid(cf.tol, [1e-6, 1e-8] if param_grid else [cf.getTol()])
             .addGrid(cf.regParam, [0.001, 0.01, 0.1] if param_grid else [cf.getRegParam()])
             .addGrid(cf.elasticNetParam, [0.8, 0.75] if param_grid else [cf.getElasticNetParam()])
             .build()
         )
 
     return cf, grid
+
+# COMMAND ----------
+
+# example function for converting tbeween params to hyperopt
+
+def param_grid_to_hyperopt(grid):
+    """
+    Utility to convert from grid parameters to hyperopt parameters.
+    """
+    from hyperopt import hp
+    dict_param = {}
+    for o in grid:
+        for j in o:
+            if j.name not in dict_param:
+                dict_param[j.name] = []
+            dict_param[j.name].append(o[j])
+    # print(dict_param)
+    dict_param = {k: hp.choice(k, list(set(dict_param[k]))) for k in dict_param}
+    # print(dict_param)
+    return dict_param
