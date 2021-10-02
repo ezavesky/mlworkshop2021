@@ -187,45 +187,6 @@ fn_log(f"\nIf everything worked, you should be able to open this url (you'll nee
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Writing to a CSV
-# MAGIC Generally this should be avoided  -- because we don't want to locally download or share data from a cloud source -- but the request is frequent enough that it might be helpful.  If you need more of a walkthrough consider [this single CSV reference](https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/).
-
-# COMMAND ----------
-
-import numpy as np
-import pandas as pd
-df_random = pd.DataFrame(np.random.rand(100,4), columns=[f"rand{i:02}" for i in range(4)])
-sdf_random = spark.createDataFrame(df_random)
-display(sdf_random)
-
-def write_csv_single(sdf, path_target):
-    """A utility function to write a spark data frame (`sdf`) to a single CSV destination (`path_target`)..."""
-    try:
-        dbutils.fs.rm(path_target, recurse=True)
-    except Exception as e:
-        pass
-    # the main trick is to reparition to just `1` file...
-    sdf_random.repartition(1).write.format('csv').option('overwrite', True).option('header', True).save(path_target)
-    # find what else went there, looking for the one parquet split...
-    stat_file = [(fs.name, fs.size) for fs in dbutils.fs.ls(path_target) if fs.name.endswith('.csv')][0]
-    # move newly written to temp file
-    path_temp = f"{path_target}.temp"
-    dbutils.fs.mv(f"{path_target}/{stat_file[0]}", path_temp)
-    # clear just written hierarchy
-    dbutils.fs.rm(path_target, recurse=True)
-    # move temp file to single location
-    dbutils.fs.mv(path_temp, path_target)
-    fn_log(f"Wrote to CSV ... {path_target} ({stat_file[1]} bytes), check out the URL above for reference.")
-    
-
-path_csv_example = f"{SCATCH_ROOT}/mlworkshop2021_example.csv"
-write_csv_single(sdf_random, path_csv_example)
-
-    
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC Thanks for walking through this intro to data writes.  We demonstrated how to read and write to a personal scratch space with a few tips on developing optimal indexing when you write and creating individual CSVs.
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1c_COMPUTING_FEATURES` where we begin to create a feature pipeline in spark.
@@ -236,4 +197,5 @@ write_csv_single(sdf_random, path_csv_example)
 # MAGIC # Done with Writes!
 # MAGIC Still want more or have questions about more advanced topics?  Check out the directory `extra_credit` to find a few different notebooks that have more useful details.  Additionally, there are a lot of [advanced features for delta format](https://databricks.com/blog/2019/02/04/introducing-delta-time-travel-for-large-scale-data-lakes.html) that we don't dive into in this workshop.
 # MAGIC 
-# MAGIC - `1_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1a_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1b_WRITE_A_SINGLE_CSV` - Example code on writing a single CSV from a larger spark dataframe.

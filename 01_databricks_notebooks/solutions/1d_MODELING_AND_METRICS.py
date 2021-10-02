@@ -91,7 +91,7 @@ if is_workshop_admin():
 
 # MAGIC %md
 # MAGIC # Classifier Construction
-# MAGIC At this point, a pipeline to transform features has been constructed and evaluated on our raw data.  Now, the task is to train and evaluate a classifier.  One of the bigger shfits to using a framework like Databricks is that it is spark driven and can show advantages (and limitations) with its distribtued environment.
+# MAGIC At this point, a pipeline to transform features has been constructed and evaluated on our raw data.  Now, the task is to train and evaluate a classifier.  One of the bigger shifts to using a framework like Databricks is that it is spark driven and can show advantages (and limitations) with its distribtued environment.
 # MAGIC 
 # MAGIC Although there are others, we'll first explort the set of [classifiers](https://spark.apache.org/docs/latest/ml-classification-regression.html) natively available in spark.
 
@@ -116,6 +116,8 @@ def create_untrained_classifier(classifier="RF", col_features=col_features):
             .addGrid(cf.maxDepth, cf.getMaxDepth())
             .build()
         )
+    elif classifier = "LR":
+        pass
     else:
         cf = GBTClassifier(featuresCol=col_features, labelCol=IHX_COL_LABEL,
                             predictionCol=IHX_COL_PREDICT_BASE.format(base="int"),

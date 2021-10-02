@@ -81,7 +81,14 @@ except Exception as e:
 # COMMAND ----------
 
 # load spark data frame from CSV
-sdf_ihx = spark.read.format('csv').option('header', True).load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+sdf_ihx = (
+    spark.read.format('csv')
+    .option('nullValue', 'NULL')
+    .option("inferSchema", "true")
+    .option("sep", "\t")
+    .option('header', True)
+    .load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+)
 display(sdf_ihx)
 
 # COMMAND ----------
@@ -217,6 +224,21 @@ display(sdf_sub)
 # here's a helper on how to write a list
 columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', 'hsd_top_competitor_name']
 
+### CHALLENGE
+
+# here, we display only items in the 'S' (south east region)
+sdf_sub = (sdf_ihx_gold
+#     .filter( )
+#     .select( )
+)
+### CHALLENGE
+display(sdf_sub)
+
+# COMMAND ----------
+
+# here's a helper on how to write a list
+columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', 'hsd_top_competitor_name']
+
 ### SOLUTION
 
 # here, we display only items in the 'SE' (south east region)
@@ -266,6 +288,26 @@ display(sdf_prices)
 # MAGIC 3. Find the average price for each competitor?
 # MAGIC 4. Filter out those columns that are null/empty.  *(this is provided for you)*
 # MAGIC 5. Sort by our competitor names.  *(this is provided for you)*
+
+# COMMAND ----------
+
+## CHALLENGE
+
+# continuing from above, let's average prices from our competitors 
+sdf_prices = (sdf_ihx_gold
+    .groupBy(
+        F.col('region'),
+#         F.col('')
+    )   # group by 
+    .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
+        F.max('hsd_top_competitor_price').alias('max'), 
+#         F.???().alias('average'))
+    .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
+    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
+)
+## CHALLENGE
+
+display(sdf_prices)
 
 # COMMAND ----------
 

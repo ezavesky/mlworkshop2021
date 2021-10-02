@@ -23,8 +23,9 @@
 # MAGIC You're ready to start the **cloned notebook** on your **personal cluster**, right? Great!
 # MAGIC 
 # MAGIC 1. Look at the drop down and find the personal cluster you created and click/select.
+# MAGIC     * **NOTE** Please connect to the server "CDO-MLWorkshop2021" for the workshop today!
 # MAGIC 2. The combo box will update for your own cluster, click that region again and select "Start Cluster"
-# MAGIC   * _Pro Tip_: The next time you start this notebook it should remember what you used so you can auto-start by trying to run a cell.
+# MAGIC     * _Pro Tip_: The next time you start this notebook it should remember what you used so you can auto-start by trying to run a cell.
 # MAGIC 3. Give the cluster a minute or two to spin up and an indicator will be a green, filled circle for a _"standard cluster"_ or a green lightening bolt for a _"high concurrency"_ cluster.
 # MAGIC 4. When you're ready click on a cell and hit command-enter or click the indicator _"Run All"_ on the top ribbon to run all cells.
 # MAGIC 5. *Pat on back* or *high five*
@@ -75,13 +76,13 @@ except Exception as e:
 # MAGIC Data reads typically happen with Spark commands.
 # MAGIC - CSV - needs no explination, right? consider this as your tried-and-true (but equally antiquated) data format; we advise looking to delta for dramatic speed improvements! 
 # MAGIC - [ORC](https://www.learntospark.com/2020/02/how-to-read-and-write-orc-file-in-apache-spark.html) - an early hadoop-friendly format using data striping for faster operations
-# MAGIC - [Delta](https://databricks.com/blog/2019/08/21/diving-into-delta-lake-unpacking-the-transaction-log.html) - a Ddatabricks developed, open source format that optimizes written tables for fast columnar scans and includes "time machine" versioning between writes; it's also the foundation of "Delta Lake" which is a Databricks wrapper product for managing these tables
+# MAGIC - [Delta](https://databricks.com/blog/2019/08/21/diving-into-delta-lake-unpacking-the-transaction-log.html) - a Databricks developed, open source format that optimizes written tables for fast columnar scans and includes "time machine" versioning between writes; it's also the foundation of "Delta Lake" which is a Databricks wrapper product for managing these tables
 # MAGIC   - **NOTE**: We can point to other speed tests for evidence, but tables in delta format are dramatically faster to read and execute queries on versus ORC, CSV, etc.
 
 # COMMAND ----------
 
 # load spark data frame from CSV
-sdf_ihx = spark.read.format('csv').option('header', True).load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+sdf_ihx = spark.read.format('csv').option('header', True).option('parser', '\t').load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
 display(sdf_ihx)
 
 # COMMAND ----------

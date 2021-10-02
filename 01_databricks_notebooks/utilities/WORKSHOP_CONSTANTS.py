@@ -61,7 +61,13 @@ MLFLOW_EXPERIMENT = "MLWorkshop2021"   # default experiment name for centralized
 
 # the last command assumes you make a scratch directory that you own (or can write to) with your ATTID
 # for instructions on how to create your own scratch, head to notebook `1b_DATA_WRITE_EXAMPLES`
-SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
+if False:
+    SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
+
+# No time to make your own scratch? no problem, you can use the temp container created for the workshop.
+# NOTE: this container will be deactivated within a week or so of the workshop!
+else:
+    SCATCH_ROOT = f"abfss://mlworkshop2021-writeable@STORAGE/{USER_ID}"
 
 # feature processing paths
 SCRATCH_IHX_VECTORIZER_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_Vectorizer"

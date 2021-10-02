@@ -170,6 +170,22 @@ fn_log(f"Count of StringIndexer candidate columns {len(feature_cols_list)} ...")
 
 # COMMAND ----------
 
+## CHALLENGE
+
+from pyspark.ml.feature import VectorAssembler
+
+# define our hole set of columns as combination of stringindexed + numeric
+feature_cols_list += dict_features['numeric']
+col_vectorized = "vectorized"
+# note that we 'skip' invalid data, so we need to be sure and zero-fill values
+# assembler = VectorAssembler(inputCols=?, outputCol=?, handleInvalid=?)
+# stages_spark.append(assembler)
+fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
+
+## CHALLENGE
+
+# COMMAND ----------
+
 ## SOLUTION
 
 from pyspark.ml.feature import VectorAssembler
