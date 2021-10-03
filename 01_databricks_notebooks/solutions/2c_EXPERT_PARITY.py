@@ -105,7 +105,7 @@ evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TO
 
 # start a new run with specific id, it will be closed at the end of this cell
 mlflow.end_run()  # doesn't hurt, always close a prior run
-run_name = f"mlopt-{method_test}-{dt.datetime.now().strftime('%m%d-%H%S')}"
+run_name = f"expert-{method_test}-{dt.datetime.now().strftime('%m%d-%H%S')}"
 with mlflow.start_run(run_name=run_name) as run:
     # proceed to train
     df_X, df_Y = pandas_features(sdf_transformed, col_features)
@@ -127,7 +127,7 @@ with mlflow.start_run(run_name=run_name) as run:
     cvModel = cf.fit(df_X, df_Y, eval_metric='auc')
     mlflow.sklearn.log_model(cvModel, "core-model")
     mlflow.log_params(param_learn)
-    mlflow.set_tag("search-type", "none")
+    mlflow.set_tag("search-type", "direct")
 
     # proceed to predict...
     df_X, df_Y = pandas_features(sdf_transformed_test, col_features)
@@ -162,7 +162,7 @@ with mlflow.start_run(run_name=run_name) as run:
 
 # MAGIC %md
 # MAGIC ## Looking for Results
-# MAGIC We used our mlflow structure to save the performance and model directly, so when we're ready to go, it should be directly accessible. Go back toyour tracking notebook `MLWorkshop2021` (under `Workspace` -> `ID@DOMAIN` -> `MLWorkshop2021`) to visualize the exact results!
+# MAGIC We used our mlflow structure to save the performance and model directly, so when we're ready to go, it should be directly accessible. Go back to your tracking notebook `MLWorkshop2021` (under `Workspace` -> `ID@DOMAIN` -> `MLWorkshop2021`) to explore the saved model and perforamnce.
 
 # COMMAND ----------
 
