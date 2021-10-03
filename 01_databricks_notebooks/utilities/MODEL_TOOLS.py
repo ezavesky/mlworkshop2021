@@ -3,7 +3,7 @@
 
 # COMMAND ----------
 
-from pyspark.ml.classification import RandomForestClassifier, LogisticRegression, LinearSVC
+from pyspark.ml.classification import RandomForestClassifier, LogisticRegression, LinearSVC, GBTClassifier
 from pyspark.ml.tuning import ParamGridBuilder
 
 # simple function to get a raw clasifier
@@ -55,6 +55,19 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
             .addGrid(cf.tol, [1e-6, 1e-8] if param_grid else [cf.getTol()])
             .addGrid(cf.regParam, [0.001, 0.01, 0.1] if param_grid else [cf.getRegParam()])
             .addGrid(cf.elasticNetParam, [0.8, 0.75] if param_grid else [cf.getElasticNetParam()])
+            .build()
+        )
+    else:
+        cf = GBTClassifier(featuresCol=col_features, labelCol=IHX_COL_LABEL,
+                            predictionCol=IHX_COL_PREDICT_BASE.format(base="int"),
+                            probabilityCol=IHX_COL_PREDICT_BASE.format(base="prob"),
+                            rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
+        cf.setMaxIter(15)
+        cf.setMaxDepth(2)
+        # TODO: do we add other grid exploration for GBT?
+        grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
+            .addGrid(cf.maxIter, cf.getMaxIter())
+            .addGrid(cf.maxDepth, cf.getMaxDepth())
             .build()
         )
 

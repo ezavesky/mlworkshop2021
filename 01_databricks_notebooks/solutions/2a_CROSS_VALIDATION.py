@@ -51,6 +51,10 @@ sdf_transformed_sample = sdf_transformed.sample(IHX_TRAINING_SAMPLE_FRACTION)
 
 # COMMAND ----------
 
+evaluator_performance_curve(sdf_predict, str_title)
+
+# COMMAND ----------
+
 from pyspark.ml.tuning import CrossValidator
 
 method_test = "RF"
@@ -167,6 +171,30 @@ f.close()
 # MAGIC 2. Use [parameter logging](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_param) to record the value of chosen columns (`col_features`) and the sampel fraction (`IHX_TRAINING_SAMPLE_FRACTION`)
 # MAGIC 3. Log specific [metrics](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_metric) like the evaluated metric stored in `score_eval`  on the testing dataset.
 # MAGIC 4. Log the [generated graphic/metric](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_figure) that was generated above and stored in the variable `fig`.
+
+# COMMAND ----------
+
+#### CHALLENGE #### 
+
+# write some various metrics, params, etc.
+# mlflow.set_tag("???", "??")
+# mlflow.log_param("??", ???)
+# mlflow.log_metric("???", ???)
+mlflow.log_text(f"{dt.datetime.now()}: this would be a complete log to save...", 'log_text.txt')
+
+# plot a figure and log it to mlflow
+# the variable `fig` is provided above, how can you write it to a saved artifact
+# mlflow.log_figure(???)
+
+#### CHALLENGE #### 
+
+# you can also write a temp file...
+mlflow.log_artifact(f.name, 'temp_text.txt')
+
+# and hte model artifact
+mlflow.spark.log_model(cvModel, "spark-model")
+
+
 
 # COMMAND ----------
 

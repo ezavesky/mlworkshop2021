@@ -259,6 +259,12 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC # Writing Transformed Features
+# MAGIC (to be migrated)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC Thanks for walking through this intro to feature writing.  We visualized a few features and built a pipeline that will transform our raw data into a dense numerical feature vector for subsequent learning.
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1d_MODELING_AND_METRICS` that includes training a basic model in Databricks with spark.

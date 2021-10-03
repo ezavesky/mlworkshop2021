@@ -10,10 +10,10 @@ def transformer_load(path_primary, path_secondary=None):
     try:
         list_files = dbutils.fs.ls(path_primary)
     except Exception as e:
-        if path_seconday is None:
+        if path_secondary is None:
             fn_log(f"Failed to load transformer from '{path_primary}', no secondary provided, aborting...")
             return None
-        fn_log(f"Primary failed, attempting to load secondary transformer '{path_primary}'...")
+        fn_log(f"Primary failed, attempting to load secondary transformer '{path_secondary}'...")
         return transformer_load(path_secondary)
     pipe_loaded = Pipeline.read().load(path_primary)
     return pipe_loaded
