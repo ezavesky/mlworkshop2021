@@ -191,7 +191,7 @@ from pyspark.ml.functions import vector_to_array
 evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TOOLS"
 score_eval = evaluator.evaluate(sdf_predict)
 num_train = sdf_train.count()
-str_title = f"Original CGD (2-decile, {num_train} samples): {score_eval}"
+str_title = f"Original DCG (2-decile, {num_train} samples): {score_eval}"
 fn_log(str_title)
 
 evaluator_performance_curve(sdf_predict, str_title)    # a workshop function from "EVALUATOR_TOOLS"
@@ -230,7 +230,7 @@ sdf_predict = cfModel.transform(sdf_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
 # step four - visualize performance
-str_title = f"Stratified, LR CGD (2-decile, {num_train} samples): {score_eval} (validation CGD: {cfModel.validationMetrics})"
+str_title = f"Stratified, LR DCG (2-decile, {num_train} samples): {score_eval} (validation CGD: {cfModel.validationMetrics})"
 fn_log(str_title)
 evaluator_performance_curve(sdf_predict, str_title)
 #### SOLUTION  ####

@@ -146,7 +146,7 @@ with mlflow.start_run(run_name=run_name) as run:
     mlflow.log_metric(evaluator.getMetricName(), score_eval)
 
     # plot a figure and log it to mlflow
-    str_title = f"Grid-{method_test} CGD (2-decile): {round(score_eval, 3)}"
+    str_title = f"Grid-{method_test} DCG (2-decile): {round(score_eval, 3)}"
     fn_log(str_title)
     fig = evaluator_performance_curve(sdf_predict, str_title)
     mlflow.log_figure(fig, "grid-gcd.png")

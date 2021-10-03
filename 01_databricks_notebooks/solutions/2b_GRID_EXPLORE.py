@@ -98,7 +98,7 @@ with mlflow.start_run(run_name=run_name):
     mlflow.set_tag("search-type", "grid")
 
     # plot a figure and log it to mlflow
-    str_title = f"Grid-{method_test} CGD (2-decile): {round(score_eval, 3)} (x-fold CGD: {round(best_score, 3)})"
+    str_title = f"Grid-{method_test} DCG (2-decile): {round(score_eval, 3)} (x-fold CGD: {round(best_score, 3)})"
     fn_log(str_title)
     fig = evaluator_performance_curve(sdf_predict, str_title)
     mlflow.log_figure(fig, "grid-gcd.png")
@@ -217,7 +217,7 @@ with mlflow.start_run(run_name=run_name) as run:
     score_eval = evaluator.evaluate(sdf_predict)
 
     # plot the performance figure
-    str_title = f"Xfold-{method_test} CGD (2-decile): {round(score_eval, 3)} "
+    str_title = f"Xfold-{method_test} DCG (2-decile): {round(score_eval, 3)} "
     fn_log(str_title)
     fig = evaluator_performance_curve(sdf_predict, str_title)
 

@@ -72,7 +72,7 @@ fn_log(f"Average Cross-fold Metrics {cvModel.avgMetrics}")
 sdf_predict = cvModel.transform(sdf_transformed_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
-str_title = f"Xfold-{method_test} CGD (2-decile): {round(score_eval, 3)} "
+str_title = f"Xfold-{method_test} DCG (2-decile): {round(score_eval, 3)} "
 fn_log(str_title)
 evaluator_performance_curve(sdf_predict, str_title)
 
@@ -143,7 +143,7 @@ sdf_predict = cvModel.transform(sdf_transformed_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
 # plot the performance figure
-str_title = f"Xfold-{method_test} CGD (2-decile): {round(score_eval, 3)} "
+str_title = f"Xfold-{method_test} DCG (2-decile): {round(score_eval, 3)} "
 fn_log(str_title)
 fig = evaluator_performance_curve(sdf_predict, str_title)
 
