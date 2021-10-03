@@ -11,8 +11,8 @@ MLW_DATA_ROOT = "abfss://mlworkshop2021@STORAGE"
 MLW_DATA_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"
 
 # the "gold" data reference - in CDO parlence, this generally meant the data has been cleaned and indexed optimally
-IHX_GOLD = f"{MLW_DATA_ROOT}/ihx/IHX_gold"
-IHX_GOLD_TESTING = f"{IHX_GOLD}-testing"
+IHX_BRONZE = f"{MLW_DATA_ROOT}/ihx/IHX_bronze"
+IHX_BRONZE_TEST = f"{IHX_BRONZE}-test"
 
 # some feature column names
 IHX_COL_VECTORIZED = "vectorized"
@@ -25,9 +25,10 @@ IHX_COL_PREDICT_BASE = "predict_{base}"
 IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
 IHX_NORM_L2_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_L2Normalizer"
 IHX_NORM_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+IHX_TRANSFORMER_MODEL_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Transformer_Model"
 
 # intermediate data from vecctorization
-IHX_GOLD_TRANSFORMED = f"{MLW_DATA_ROOT}/ihx/IHX_gold_transformed"
+IHX_GOLD_TRANSFORMED = f"{MLW_DATA_ROOT}/ihx_gold/IHX_gold"
 IHX_GOLD_TRANSFORMED_TEST = f"{IHX_GOLD_TRANSFORMED}-test"
 
 # full evaluator variables
@@ -37,7 +38,7 @@ IHX_TRAINING_SAMPLE_FRACTION = 0.11   # reduce training set from 429k to about 1
 
 # MAGIC %r
 # MAGIC MLW_DATA_ROOT <- "abfss://mlworkshop2021@STORAGE"
-# MAGIC IHX_GOLD <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
+# MAGIC IHX_BRONZE <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
 # MAGIC 
 # MAGIC # Getting errors running on another cluster? Consider commenting out this cell...
 

@@ -23,16 +23,20 @@
 
 # MAGIC %md
 # MAGIC # Basic ETL and Exploration
-# MAGIC Feature exploration by statistics...
+# MAGIC ETL is an acronym for extract, transform, and load and it's generally mean to encompass all of the steps required **before** you can actually do any machine learning on a problem.  Namely, it grabs the right raw data, merges, transforms, and fills-in all of the dirty parts to produce a more intermediate form of data.  Databrick's [training documentation](https://databricks.com/blog/2019/08/14/productionizing-machine-learning-with-delta-lake.html) defines the stages in this step as going from bronze, silver, to gold.
+# MAGIC 
+# MAGIC For the sake of brevity, we'll refer to our processed data as "GOLD" and leave the other steps to the reader!
+# MAGIC 
+# MAGIC ![Architecture Example](https://databricks.com/wp-content/uploads/2019/08/Delta-Lake-Multi-Hop-Architecture-Overview.png)
 
 # COMMAND ----------
 
 # load delta dataframe (it should be the same!)
 # flip over to notebook '1B' to see how this was written if you're curious!
-sdf_ihx_gold = spark.read.format('delta').load(f"{IHX_GOLD}")
+sdf_ihx_bronze = spark.read.format('delta').load(f"{IHX_BRONZE}")
 
-sdf_ihx_gold.printSchema()
-display(sdf_ihx_gold)
+sdf_ihx_bronze.printSchema()
+display(sdf_ihx_bronze)
 
 # COMMAND ----------
 
@@ -69,7 +73,7 @@ def get_feature_column_types(sdf_data, exclude_cols=[]):
     return feature_sets
 
 skip_columns = ['assignment_start_dt', IHX_COL_INDEX, IHX_COL_LABEL, 'is_train']
-dict_features = get_feature_column_types(sdf_ihx_gold, skip_columns)
+dict_features = get_feature_column_types(sdf_ihx_bronze, skip_columns)
 fn_log(f"### These columns were skipped: {dict_features['invalid']}\n\n")
 fn_log(f"### Are these features strings? {dict_features['string']}\n\n")
 fn_log(f"### Are these features numeric? {dict_features['numeric']}\n\n")
@@ -88,7 +92,7 @@ import ipywidgets as widgets
 
 # we're going to plot two graphs -- one over region, one over assignment month
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-df_regions = (sdf_ihx_gold
+df_regions = (sdf_ihx_bronze
     .groupBy('final_response', 'region').count().toPandas()
     .pivot(index='region',columns=['final_response'], values='count').fillna(0)
 )
@@ -96,7 +100,7 @@ df_regions.plot.bar(ax=ax1)
 ax1.set_yscale('log')   # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_yscale.html#matplotlib.axes.Axes.set_yscale
 ax1.grid()
 
-df_regions = (sdf_ihx_gold
+df_regions = (sdf_ihx_bronze
     .groupBy('final_response', 'assignment_start_month').count().toPandas()
     .pivot(index='assignment_start_month',columns=['final_response'], values='count').fillna(0)
 )
@@ -176,6 +180,7 @@ from pyspark.ml.feature import VectorAssembler
 
 # define our hole set of columns as combination of stringindexed + numeric
 feature_cols_list += dict_features['numeric']
+feature_cols_list = list(set(feature_cols_list))
 col_vectorized = "vectorized"
 # note that we 'skip' invalid data, so we need to be sure and zero-fill values
 # assembler = VectorAssembler(inputCols=?, outputCol=?, handleInvalid=?)
@@ -192,6 +197,7 @@ from pyspark.ml.feature import VectorAssembler
 
 # define our hole set of columns as combination of stringindexed + numeric
 feature_cols_list += dict_features['numeric']
+feature_cols_list = list(set(feature_cols_list))
 col_vectorized = "vectorized"
 # note that we 'skip' invalid data, so we need to be sure and zero-fill values
 assembler = VectorAssembler(inputCols=feature_cols_list, outputCol=col_vectorized, handleInvalid='skip')
@@ -236,8 +242,8 @@ pipe_minmax = Pipeline(stages=stages_spark + [minmax])
 if is_workshop_admin():  # again, these are for the workshop admin only; hopefully you can write your own to scratch below!
     quiet_delete(IHX_VECTORIZER_PATH)
     pipe_vectorized.write().save(IHX_VECTORIZER_PATH)
-    quiet_delete(IHX_MINMAX_PATH)
-    pipe_minmax.write().save(IHX_MINMAX_PATH)
+    quiet_delete(IHX_NORM_MINMAX_PATH)
+    pipe_minmax.write().save(IHX_NORM_MINMAX_PATH)
     quiet_delete(IHX_NORM_L2_PATH)
     pipe_l2.write().save(IHX_NORM_L2_PATH)
 
@@ -260,7 +266,65 @@ except Exception as e:
 
 # MAGIC %md
 # MAGIC # Writing Transformed Features
-# MAGIC (to be migrated)
+# MAGIC Before we leave the script for feature preparation, let's proceed to transform our raw features into vectors.  One special note is that we still need to "fit" (or train) the feature transformation pipeline.  However, there was a glaring hole in prior work --- we skipped bad (or missing) values.  
+# MAGIC 
+# MAGIC To be explicit, we would normally complete all these steps before we can claim ETL is done...
+# MAGIC 
+# MAGIC 1. Fit/train the transformer pipeline (into a pipeline "model")
+# MAGIC 2. Write the trained transformer pipeline "model" to disk for reuse on new testing data
+# MAGIC 3. Transform our testing data and write it to disk as well for faster reuse in ML training
+# MAGIC 
+# MAGIC To help us along, we'll load a helper script, `TRANSFORMER_TOOLS`, that is reused to load and "fill" empty values that we may encounter for new data.
+
+# COMMAND ----------
+
+# MAGIC %run ../utilities/TRANSFORMER_TOOLS
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Transformed Features
+# MAGIC The above cell demonstrated a number of stages for string and numerical processing. 
+# MAGIC 
+# MAGIC However, recall that we must `fillna()` certain columns with the right type of data (e.g. *string* and *numeric*). The cell below demonstrates the transform of input features into a dense vector.  
+
+# COMMAND ----------
+
+# attempt to train model on all of the data
+sdf_filled = transformer_feature_fillna(sdf_ihx_bronze)
+
+# for now, we'll use the 'vectorized' pipeline and column name
+col_features = IHX_COL_VECTORIZED   # IHX_COL_NORMALIZED
+pipe_original = pipe_vectorized
+
+# proceed to fit/train the transformer
+pipe_transform = pipe_original.fit(sdf_filled)
+# print the new pipeline
+fn_log(pipe_transform)
+fn_log(pipe_transform.stages)
+
+# COMMAND ----------
+
+# now transform data...
+display(sdf_filled)
+sdf_transformed = pipe_transform.transform(sdf_filled)
+sdf_transformed = sdf_transformed.select(F.col(IHX_COL_LABEL), F.col(IHX_COL_INDEX), F.col(col_features))
+display(sdf_transformed.limit(10))
+
+# do the same for our TESTING data
+sdf_ihx_bronze_testing = spark.read.format('delta').load(f"{IHX_BRONZE_TEST}")
+sdf_transformed_test = pipe_transform.transform(transformer_feature_fillna(sdf_ihx_bronze_testing))
+
+# write out if admin
+if is_workshop_admin():
+    quiet_delete(IHX_GOLD_TRANSFORMED)
+    quiet_delete(IHX_GOLD_TRANSFORMED_TEST)
+    sdf_transformed.write.format('delta').save(IHX_GOLD_TRANSFORMED)
+    sdf_transformed_test.write.format('delta').save(IHX_GOLD_TRANSFORMED_TEST)
+    quiet_delete(IHX_TRANSFORMER_MODEL_PATH)
+    pipe_transform.write().save(IHX_TRANSFORMER_MODEL_PATH)
+    
+
 
 # COMMAND ----------
 

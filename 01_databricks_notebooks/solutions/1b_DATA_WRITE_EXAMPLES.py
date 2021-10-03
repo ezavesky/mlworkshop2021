@@ -54,13 +54,13 @@
 # this code is commented out because it's just provided for reference...
 #   namely, how we got the IHX data into an ADLSg2 storage container
 # NOTE: You may not be able to run the first command this due to privilages, but if you've created a 
-IHX_GOLD_UNPARTITIONED = f"{IHX_GOLD}-unpartitioned"
+IHX_BRONZE_UNPARTITIONED = f"{IHX_BRONZE}-unpartitioned"
 if is_workshop_admin():
     # you may need to delete a prior version because delta will otherwise optimize it as an update
     try:
-        dbutils.fs.rm(IHX_GOLD, True)   # recursively delete what was there before
-        dbutils.fs.rm(IHX_GOLD_TESTING, True)
-        dbutils.fs.rm(IHX_GOLD_UNPARTITIONED, True)
+        dbutils.fs.rm(IHX_BRONZE, True)   # recursively delete what was there before
+        dbutils.fs.rm(IHX_BRONZE_TEST, True)
+        dbutils.fs.rm(IHX_BRONZE_UNPARTITIONED, True)
     except Excpetion as e:
         fn_log("Error clearing parititon, maybe it didn't exist...")
 
@@ -77,11 +77,11 @@ if is_workshop_admin():
         .option('header', True)
         .load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
     )
-    sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_GOLD_UNPARTITIONED}")
+    sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_BRONZE_UNPARTITIONED}")
     # scratch space under your user ID, the seccond command should work.
     (sdf_ihx.repartition('assignment_start_month')
          .write.format('delta').partitionBy('assignment_start_month')
-         .mode('overwrite').save(f"{IHX_GOLD}"))
+         .mode('overwrite').save(f"{IHX_BRONZE}"))
 
     # now read and repartition the testing data as well
     sdf_ihx_testing = (
@@ -95,25 +95,25 @@ if is_workshop_admin():
     # scratch space under your user ID, the seccond command should work.
     (sdf_ihx_testing.repartition('assignment_start_month')
          .write.format('delta').partitionBy('assignment_start_month')
-         .mode('overwrite').save(f"{IHX_GOLD_TESTING}"))
+         .mode('overwrite').save(f"{IHX_BRONZE_TEST}"))
 
 
 # COMMAND ----------
 
-list_files = dbutils.fs.ls(IHX_GOLD_UNPARTITIONED)
-fn_log(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_GOLD_UNPARTITIONED}'")
+list_files = dbutils.fs.ls(IHX_BRONZE_UNPARTITIONED)
+fn_log(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_BRONZE_UNPARTITIONED}'")
 for file_ref in list_files[:5]:   # just pring the first five
     fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 fn_log("")
     
-list_files = dbutils.fs.ls(IHX_GOLD)
-fn_log(f"## Files in month-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
+list_files = dbutils.fs.ls(IHX_BRONZE)
+fn_log(f"## Files in month-partitioned format... {len(list_files)} total from path '{IHX_BRONZE}'")
 for file_ref in list_files[:5]:   # just pring the first five
     fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 
 # COMMAND ----------
 
-path_sub = f"{IHX_GOLD}/{list_files[-1].name}"
+path_sub = f"{IHX_BRONZE}/{list_files[-1].name}"
 list_files_sub = dbutils.fs.ls(path_sub)
 fn_log(f"## Files in region-partitioned format... {len(list_files_sub)} total from path '{path_sub}'")
 for file_ref in list_files_sub[:5]:   # just pring the first five
@@ -129,7 +129,7 @@ for file_ref in list_files_sub[:5]:   # just pring the first five
 # COMMAND ----------
 
 from pyspark.sql import functions as F
-sdf_ihx = spark.read.format('delta').load(f"{IHX_GOLD}")
+sdf_ihx = spark.read.format('delta').load(f"{IHX_BRONZE}")
 display(sdf_ihx
    .groupBy('assignment_start_month')
    .agg(F.count(F.col('assignment_start_month')).alias('count'))

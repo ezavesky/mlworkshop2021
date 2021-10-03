@@ -22,16 +22,8 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC # Loading Serialized Pipelines
+# MAGIC # Reviewing Serialized Pipelines
 # MAGIC In our last notebook we created a few pipelines that will convert from raw input dataframes into vecctorized feature rows.  Let's make sure these transformers are portable by loading and testing a quick fit operation.
-
-# COMMAND ----------
-
-# load delta dataframe (it should be the same!)
-# flip over to notebook '1B' to see how this was written if you're curious!
-sdf_ihx_gold = spark.read.format('delta').load(IHX_GOLD)
-sdf_ihx_gold_testing = spark.read.format('delta').load(IHX_GOLD_TESTING)
-display(sdf_ihx_gold)
 
 # COMMAND ----------
 
@@ -52,40 +44,20 @@ else:    # however, you can experiment with features...
 if pipe_transform_untrained is None:
     fn_log("Looks like an unexpected/critical error, please make sure you have acccess to the MLWorkshop data.")
 
-
-# COMMAND ----------
-
-# attempt to train model on a tenth of the total data
-sdf_filled = transformer_feature_fillna(sdf_ihx_gold)
-pipe_transform = pipe_transform_untrained.fit(sdf_filled)
 # print the new pipeline
-fn_log(pipe_transform)
-fn_log(pipe_transform.stages)
+fn_log(pipe_transform_untrained)
+fn_log(pipe_transform_untrained.stages)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Transformed Features
-# MAGIC The above cell demonstrated a number of stages for string and numerical processing. 
-# MAGIC 
-# MAGIC However, recall that we must `fillna()` certain columns with the right type of data (e.g. *string* and *numeric*). The cell below demonstrates the transform of input features into a dense vector.  
+# MAGIC ## Reading Transformed Data
+# MAGIC Good separation of ETL and learning allows us to proceed directly with the ETL'd features from here on.  Specifically, even though we may train different ML models, they will all reuse the same preprocessed features.  This will reduce our processing time and make sure that the different models have the same starting point.
 
 # COMMAND ----------
 
-# now transform data...
-display(sdf_filled)
-sdf_transformed = pipe_transform.transform(sdf_filled)
-sdf_transformed = sdf_transformed.select(F.col(IHX_COL_LABEL), F.col(IHX_COL_INDEX), F.col(col_features))
-display(sdf_transformed.limit(10))
-
-# do the same for our TESTING data
-sdf_transformed_test = pipe_transform.transform(transformer_feature_fillna(sdf_ihx_gold_testing))
-
-# write out if admin
-if is_workshop_admin():
-    sdf_transformed.write.format('delta').save(IHX_GOLD_TRANSFORMED)
-    sdf_transformed_test.write.format('delta').save(IHX_GOLD_TRANSFORMED_TEST)
-
+sdf_transformed = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED)
+sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST)
 
 # COMMAND ----------
 

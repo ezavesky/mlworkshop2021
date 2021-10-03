@@ -27,6 +27,7 @@ display(sdf_ihx_gold)
 # COMMAND ----------
 
 import databricks.koalas as ks
+from pyspark.sql import functions as F
 
 # convert from a spark dataframe
 kdf_ihx_hold = ks.DataFrame(sdf_ihx_gold)
@@ -159,7 +160,3 @@ kdf_sub2 = (
     .sort_values(['competitor'])
 )
 display(kdf_sub1)
-
-# COMMAND ----------
-
-
