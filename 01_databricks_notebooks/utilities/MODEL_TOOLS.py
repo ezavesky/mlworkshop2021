@@ -20,10 +20,13 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
                             probabilityCol=IHX_COL_PREDICT_BASE.format(base="prob"),
                             rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
         cf.setNumTrees(100)
-        cf.setMaxDepth(10)
+        cf.setMaxDepth(5)
+        cf.setMaxBins(32)
         grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
             .addGrid(cf.numTrees, [20, 50, 100] if param_grid else [cf.getNumTrees()])
             .addGrid(cf.maxDepth, [5, 10, 20] if param_grid else [cf.getMaxDepth()])
+            .addGrid(cf.maxBins, [16, 32, 64] if param_grid else [cf.getMaxBins()])
+            .addGrid(cf.maxBins, [16, 32, 64] if param_grid else [cf.getMaxBins()])
             .build()
         )
     elif classifier == "SVM":
@@ -46,14 +49,14 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
                                 rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
         # We can also use the multinomial family for binary classification
         cf.setMaxIter(15)
-        cf.setTol(1E-6)
-        cf.setRegParam(0.1)
-        cf.setElasticNetParam(0.8)
+        cf.setRegParam(0.001)
+        cf.setElasticNetParam(0.75)
+        cf.setTol(1e-8)
         cf.setFamily("multinomial")
         grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
             .addGrid(cf.maxIter, [10, 15] if param_grid else [cf.getMaxIter()])
             .addGrid(cf.tol, [1e-6, 1e-8] if param_grid else [cf.getTol()])
-            .addGrid(cf.regParam, [0.001, 0.01, 0.1] if param_grid else [cf.getRegParam()])
+            .addGrid(cf.regParam, [0.001, 0.01, 0.1, 0.3] if param_grid else [cf.getRegParam()])
             .addGrid(cf.elasticNetParam, [0.8, 0.75] if param_grid else [cf.getElasticNetParam()])
             .build()
         )
@@ -75,7 +78,25 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
 
 # COMMAND ----------
 
-# example function for converting tbeween params to hyperopt
+def model_load_data(path_primary, path_secondary=None):
+    """
+    This function attempts to load a saved dataset, first from a primary then a secondary path.
+    It's used in this workshop to load from personal paths or workshop paths, if not available.  
+    """
+    try:
+        list_files = dbutils.fs.ls(path_primary)
+    except Exception as e:
+        if path_secondary is None:
+            fn_log(f"Failed to load transformer from '{path_primary}', no secondary provided, aborting...")
+            return None
+        fn_log(f"Primary failed, attempting to load secondary transformer '{path_secondary}'...")
+        return model_load_data(path_secondary)
+    pipe_loaded = spark.read.format('delta').load(path_primary)
+    return pipe_loaded
+
+# COMMAND ----------
+
+# example function for converting between params to hyperopt
 
 def param_grid_to_hyperopt(grid):
     """
@@ -91,4 +112,16 @@ def param_grid_to_hyperopt(grid):
     # print(dict_param)
     dict_param = {k: hp.choice(k, list(set(dict_param[k]))) for k in dict_param}
     # print(dict_param)
+    return dict_param
+
+# COMMAND ----------
+
+def param_from_model(grid, cf):
+    """
+    Utility to pull searched parameters from a trained classifier.
+    """
+    dict_param = {}
+    for o in grid:
+        for j in o:
+            dict_param[j.name] = cf.getOrDefault(j.name)
     return dict_param

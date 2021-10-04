@@ -25,6 +25,7 @@ IHX_COL_PREDICT_BASE = "predict_{base}"
 IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
 IHX_NORM_L2_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_L2Normalizer"
 IHX_NORM_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+IHX_STDSCALE_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_StdScaler"
 IHX_TRANSFORMER_MODEL_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Transformer_Model"
 
 # intermediate data from vecctorization
@@ -60,9 +61,11 @@ MLFLOW_EXPERIMENT = "MLWorkshop2021"   # default experiment name for centralized
 
 # COMMAND ----------
 
+import datetime as dt
+
 # the last command assumes you make a scratch directory that you own (or can write to) with your ATTID
 # for instructions on how to create your own scratch, head to notebook `1b_DATA_WRITE_EXAMPLES`
-if False:
+if dt.datetime.now() > dt.datetime(month=10, year=2021, day=14):     # the shared scratch will be disabled after Oct 13
     SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
 
 # No time to make your own scratch? no problem, you can use the temp container created for the workshop.
@@ -74,6 +77,13 @@ else:
 SCRATCH_IHX_VECTORIZER_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_Vectorizer"
 SCRATCH_IHX_MINMAX_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_MinMaxScaler"
 SCRATCH_IHX_L2_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_L2Normalizer"
+SCRATCH_IHX_STDSCALE_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_StdScaler"
+SCRATCH_IHX_TRANSFORMER_MODEL_PATH = f"{SCATCH_ROOT}/ihx/IHX_Transformer_Model"
+
+# intermediate data from vecctorization
+SCRATCH_IHX_GOLD_TRANSFORMED = f"{SCATCH_ROOT}/ihx_gold/IHX_gold"
+SCRATCH_IHX_GOLD_TRANSFORMED_TEST = f"{SCRATCH_IHX_GOLD_TRANSFORMED}-test"
+
 
 # this may not work for sure, but let's try to format an Azure Portal for above...
 SCRATCH_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/{USER_ID}/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"

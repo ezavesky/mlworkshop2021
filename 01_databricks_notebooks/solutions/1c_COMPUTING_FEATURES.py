@@ -174,7 +174,6 @@ fn_log(f"Count of StringIndexer candidate columns {len(feature_cols_list)} ...")
 
 # COMMAND ----------
 
-## CHALLENGE
 
 from pyspark.ml.feature import VectorAssembler
 
@@ -182,12 +181,17 @@ from pyspark.ml.feature import VectorAssembler
 feature_cols_list += dict_features['numeric']
 feature_cols_list = list(set(feature_cols_list))
 col_vectorized = "vectorized"
+
+## CHALLENGE
+
 # note that we 'skip' invalid data, so we need to be sure and zero-fill values
 # assembler = VectorAssembler(inputCols=?, outputCol=?, handleInvalid=?)
 # stages_spark.append(assembler)
-fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
 
 ## CHALLENGE
+
+fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
+
 
 # COMMAND ----------
 
@@ -219,14 +223,12 @@ fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Storing the Feature Pipeline
-# MAGIC After completing our feature processing pipeline, we'll write it!  Lucky for us, these objects are all spark-natives, so we can even persist them to cloud storage without batting an eye.  You can even check-out the individual stages (saved with a little metadata) in the [Azure Storage Continer](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None).
-# MAGIC 
-# MAGIC One step you may consider is [feature normalization](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) to our features.  Most learning methods work best with either L1 or L2 normalization instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *all three* in our classifier evaluation stage: no normalization, L2, and min/max
+# MAGIC ## Feature Normalization
+# MAGIC One step you may consider is [feature normalization](https://spark.apache.org/docs/latest/ml-features.html#normalizer) to our features.  Most learning methods work best with [mean/std-deviation scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StandardScaler.html) or [L1 or L2 normalization](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *all three* in our classifier evaluation stage: no normalization, L2, and min/max
 
 # COMMAND ----------
 
-from pyspark.ml.feature import Normalizer, MinMaxScaler
+from pyspark.ml.feature import Normalizer, MinMaxScaler, StandardScaler
 from pyspark.ml import Pipeline
 
 pipe_vectorized = Pipeline(stages=stages_spark)
@@ -237,7 +239,18 @@ pipe_l2 = Pipeline(stages=stages_spark + [norm])
 minmax = MinMaxScaler(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
 pipe_minmax = Pipeline(stages=stages_spark + [minmax])
 
+stdscale = StandardScaler(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
+pipe_std = Pipeline(stages=stages_spark + [stdscale])
+
 # SPECIAL NOTE: These pipelines are **UNTRAINED**.  Training them is a simple matter of running data through the `fit()` function, but we're not doing that here for simplicity.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Storing the Feature Pipeline
+# MAGIC After completing our feature processing pipeline, we'll write it!  Lucky for us, these objects are all spark-natives, so we can even persist them to cloud storage without batting an eye.  You can even check-out the individual stages (saved with a little metadata) in the [Azure Storage Continer](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None).
+
+# COMMAND ----------
 
 if is_workshop_admin():  # again, these are for the workshop admin only; hopefully you can write your own to scratch below!
     quiet_delete(IHX_VECTORIZER_PATH)
@@ -246,6 +259,8 @@ if is_workshop_admin():  # again, these are for the workshop admin only; hopeful
     pipe_minmax.write().save(IHX_NORM_MINMAX_PATH)
     quiet_delete(IHX_NORM_L2_PATH)
     pipe_l2.write().save(IHX_NORM_L2_PATH)
+    quiet_delete(IHX_STDSCALE_PATH)
+    pipe_std.write().save(IHX_STDSCALE_PATH)
 
 # attempt to write to user scratch space!
 try: 
@@ -255,6 +270,8 @@ try:
     pipe_minmax.write().save(SCRATCH_IHX_MINMAX_PATH)
     quiet_delete(SCRATCH_IHX_L2_PATH)
     pipe_l2.write().save(SCRATCH_IHX_L2_PATH)
+    quiet_delete(SCRATCH_IHX_STDSCALE_PATH)
+    pipe_std.write().save(SCRATCH_IHX_STDSCALE_PATH)
     fn_log(f"Wrote to your scratch space, you can check it out on the portal... \n{SCRATCH_URL}")
 except Exception as e:
     fn_log(f"Uh oh, did you create a user scratch space? If not, that's okay, you can use the workshop's data! (Error {e})")
@@ -283,6 +300,34 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### Extra Credit - Normalizers
+# MAGIC We used the direct vectorizer pipeline, but you can experiment with the min/max, l2, and other vectorizer and normalizers.  This snippet of code below would help to get you going on other paths.
+
+# COMMAND ----------
+
+
+# load untrained model first
+if True:    # for now, use the std scalar vectors
+    col_features = IHX_COL_NORMALIZED  # IHX_COL_VECTORIZED
+    pipe_original = pipe_std
+
+else:    # however, you can experiment with features...
+    # either LOAD THEM
+    # for now, we'll use the 'vectorized' pipeline and column name
+    col_features = IHX_COL_VECTORIZED   # IHX_COL_NORMALIZED
+    pipe_original = pipe_vectorized
+    # pipe_transform_untrained = transformer_load(SCRATCH_IHX_MINMAX_PATH, IHX_MINMAX_PATH)
+    # ... or set them directly
+    # col_features = IHX_COL_NORMALIZED
+    # pipe_original = pipe_l2
+
+# print the new pipeline
+fn_log(pipe_original)
+fn_log(pipe_original.stages)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Transformed Features
 # MAGIC The above cell demonstrated a number of stages for string and numerical processing. 
 # MAGIC 
@@ -292,10 +337,6 @@ except Exception as e:
 
 # attempt to train model on all of the data
 sdf_filled = transformer_feature_fillna(sdf_ihx_bronze)
-
-# for now, we'll use the 'vectorized' pipeline and column name
-col_features = IHX_COL_VECTORIZED   # IHX_COL_NORMALIZED
-pipe_original = pipe_vectorized
 
 # proceed to fit/train the transformer
 pipe_transform = pipe_original.fit(sdf_filled)
@@ -324,12 +365,12 @@ if is_workshop_admin():
     quiet_delete(IHX_TRANSFORMER_MODEL_PATH)
     pipe_transform.write().save(IHX_TRANSFORMER_MODEL_PATH)
     
-
+# TODO: Write out in your own space? Check out the example above for scratch space writing...
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Thanks for walking through this intro to feature writing.  We visualized a few features and built a pipeline that will transform our raw data into a dense numerical feature vector for subsequent learning.
+# MAGIC Thanks for walking through this intro to feature writing.  We visualized a few features and built a pipeline that will transform our raw data into a dense numerical feature vector for subsequent learning.  If you're looking for more experiments, you can also scroll upward to the 'Extra Credit - Normalizers' and experiment with loading different normalizers for the data.  Note that you'll need to save the features to a new scratch space as well!
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1d_MODELING_AND_METRICS` that includes training a basic model in Databricks with spark.
 

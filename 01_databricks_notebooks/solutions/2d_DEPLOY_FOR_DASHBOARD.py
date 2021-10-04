@@ -57,12 +57,17 @@ df_runs['metrics.CG2D'] = df_runs.apply(lambda r: r['metrics.avg_CG2D'] if np.is
 
 ## PART 2 - normalize names
 def _map_run_name(row_data):
+    import re
+    import textwrap
+
+    re_clean = re.compile(r"^params\.")
+    
     name_base = row_data['tags.mlflow.runName']
     dt_format = ""
     if row_data['tags.mlflow.runName'] is None:
         if row_data['params.mlModelClass'] == "RandomForestClassifier":
             name_base = "RF"
-        elif row_data['params.mlModelClass'] == "LogisticRegressor": 
+        elif row_data['params.mlModelClass'] == "LogisticRegression": 
             name_base = "LR"
         elif row_data['params.mlModelClass'] == "LinearSVC": 
             name_base = "SVM"
@@ -71,7 +76,17 @@ def _map_run_name(row_data):
         else:
             name_base = "Unknown"
         dt_format = "-" + row_data['start_time'].strftime('%m%d-%H%M')
-    return f"{name_base}{dt_format}" # "-{row_data['tags.search-type']}"
+    # find okay param keys
+    keys_valid = [k for k in list(row_data.index) if "param" in k and "Uid" not in k and "ModelClass" not in k]
+    if False:   # rich param info
+        # pull the value
+        list_res = [f"{re_clean.sub('', k)}:{row_data[k]}" for k in keys_valid if row_data[k] is not None]
+        # wrap the individua lines
+        line_params = "\n".join(textwrap.wrap(', '.join(list_res), 30))
+    else:       # run id
+        line_params = f"id: {row_data['run_id'][:8]}"  # truncate to first hash parts
+    return f"{name_base}{dt_format}\n{line_params}" # "-{row_data['tags.search-type']}"
+
 # fill-in the run names
 df_runs['run_name'] = df_runs.apply(lambda r: _map_run_name(r), axis=1)
 

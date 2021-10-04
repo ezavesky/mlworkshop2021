@@ -29,9 +29,8 @@
 
 sdf_transformed = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED)
 sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST)
-col_features = IHX_COL_VECTORIZED
+col_features = IHX_COL_VECTORIZED if IHX_COL_VECTORIZED in sdf_transformed.columns else IHX_COL_NORMALIZED
 sdf_transformed_sample = sdf_transformed.sample(IHX_TRAINING_SAMPLE_FRACTION)
-
 
 # COMMAND ----------
 
@@ -224,11 +223,6 @@ with mlflow.start_run(run_name=run_name) as run:
     # plot a figure and log it to mlflow
     mlflow.log_figure(fig, "xfold-gcd.png")
    
-
-# COMMAND ----------
-
-# calc perf eval
-show_gains(sdf_predict, test_type_sorted = test_type_sorted, capture_type_sorted = capture_type_sorted, prod_type_sorted = prod_type_sorted)
 
 # COMMAND ----------
 

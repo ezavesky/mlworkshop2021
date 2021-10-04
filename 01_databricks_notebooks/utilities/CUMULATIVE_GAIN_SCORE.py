@@ -183,6 +183,13 @@ if False:
 
 # COMMAND ----------
 
+### Helper functions for IHX evaluation ###
+# These helper functions were created by the IHX team for evaluating performance and 
+# plotting it for various methods.  They're included here for reference and future exploration
+# by individuals who wish to dive deeper into the problem!
+
+# COMMAND ----------
+
 import os
 import sys
 import pickle

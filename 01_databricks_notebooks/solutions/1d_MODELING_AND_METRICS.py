@@ -31,33 +31,27 @@
 
 # COMMAND ----------
 
-
-# load untrained model first
-if True:    # for now, just use the raw vectors
-    pipe_transform_untrained = transformer_load(SCRATCH_IHX_VECTORIZER_PATH, IHX_VECTORIZER_PATH)
-    col_features = IHX_COL_VECTORIZED
-else:    # however, you can experiment with features...
-    pipe_transform_untrained = transformer_load(SCRATCH_IHX_MINMAX_PATH, IHX_MINMAX_PATH)
-    # pipe_transform_untrained = transformer_load(SCRATCH_IHX_L2_PATH, IHX_NORM_L2_PATH)
-    col_features = IHX_COL_NORMALIZED
-
-if pipe_transform_untrained is None:
-    fn_log("Looks like an unexpected/critical error, please make sure you have acccess to the MLWorkshop data.")
+# load trained model for inspection
+pipe_model_trained = pipeline_model_load(SCRATCH_IHX_TRANSFORMER_MODEL_PATH, IHX_TRANSFORMER_MODEL_PATH)
 
 # print the new pipeline
-fn_log(pipe_transform_untrained)
-fn_log(pipe_transform_untrained.stages)
+fn_log(pipe_model_trained)
+fn_log(pipe_model_trained.stages)
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Reading Transformed Data
-# MAGIC Good separation of ETL and learning allows us to proceed directly with the ETL'd features from here on.  Specifically, even though we may train different ML models, they will all reuse the same preprocessed features.  This will reduce our processing time and make sure that the different models have the same starting point.
+# MAGIC Good separation of ETL and learning allows us to proceed directly with the ETL'd features from here on.  If you're curious about what ETL is or how we processed our raw features (bronze) to our transformed features (gold), flip back to notebook `1c`.  Specifically, even though we may train different ML models, they will all reuse the same preprocessed features.  This will reduce our processing time and make sure that the different models have the same starting point.
 
 # COMMAND ----------
 
-sdf_transformed = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED)
-sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST)
+# MAGIC %run ../utilities/MODEL_TOOLS
+
+# COMMAND ----------
+
+sdf_transformed = model_load_data(SCRATCH_IHX_GOLD_TRANSFORMED, IHX_GOLD_TRANSFORMED)
+sdf_transformed_test = model_load_data(SCRATCH_IHX_GOLD_TRANSFORMED_TEST, IHX_GOLD_TRANSFORMED_TEST)
 
 # COMMAND ----------
 
@@ -69,47 +63,43 @@ sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST
 
 # COMMAND ----------
 
-from pyspark.ml.classification import RandomForestClassifier, LogisticRegression, GBTClassifier
-from pyspark.ml.tuning import ParamGridBuilder
+from pyspark.ml.classification import RandomForestClassifier
 
-# simple function to get a raw clasifier
-def create_untrained_classifier(classifier="RF", col_features=col_features):
-    """Return a classifier and some parameters to search over for training"""
-    # https://spark.apache.org/docs/latest/ml-classification-regression.html
-    if classifier == "RF":
-        cf = RandomForestClassifier(featuresCol=col_features, labelCol=IHX_COL_LABEL,
-                            predictionCol=IHX_COL_PREDICT_BASE.format(base="int"),
-                            probabilityCol=IHX_COL_PREDICT_BASE.format(base="prob"),
-                            rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
-        cf.setNumTrees(100)
-        cf.setMaxDepth(10)
-        grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
-            .addGrid(cf.numTrees, cf.getNumTrees())
-            .addGrid(cf.maxDepth, cf.getMaxDepth())
-            .build()
-        )
-    elif classifier = "LR":
-        pass
-    else:
-        cf = GBTClassifier(featuresCol=col_features, labelCol=IHX_COL_LABEL,
-                            predictionCol=IHX_COL_PREDICT_BASE.format(base="int"),
-                            probabilityCol=IHX_COL_PREDICT_BASE.format(base="prob"),
-                            rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
-        cf.setMaxIter(15)
-        cf.setMaxDepth(2)
-        grid = (ParamGridBuilder()   # this "grid" specifies the same settings but for a different funcction
-            .addGrid(cf.maxIter, cf.getMaxIter())
-            .addGrid(cf.maxDepth, cf.getMaxDepth()
-            .build()
-        )
+# get output feature as our column for input features
+col_features = pipe_model_trained.stages[-1].getOutputCol()
 
-    return cf, grid
+#  get a raw clasifier; sample for single random forest classifier
+cf = RandomForestClassifier(featuresCol=col_features, labelCol=IHX_COL_LABEL,
+                    predictionCol=IHX_COL_PREDICT_BASE.format(base="int"),
+                    probabilityCol=IHX_COL_PREDICT_BASE.format(base="prob"),
+                    rawPredictionCol=IHX_COL_PREDICT_BASE.format(base="raw"))
+cf.setNumTrees(100)
+cf.setMaxDepth(10)
+
+# we've colleted these function in this helper file... '../utilities/MODEL_TOOLS'
+#    def create_untrained_classifier(classifier="RF", col_features=col_features):
 
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Training and Evaluation
+# MAGIC ## Model Logging
+# MAGIC We'll explore this in notebook `2a`, but for now, know that there is a method to help log metrics and save models automatically.  We're setting the stage for future exploration of these results with the helper script and command below.
+
+# COMMAND ----------
+
+# MAGIC %run ../utilities/MLFLOW_TOOLS
+
+# COMMAND ----------
+
+# special command to engage in model tracking (full introduction in notebook `2a`)
+experiment = databricks_mlflow_create(MLFLOW_EXPERIMENT)
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Training and Evaluation
 # MAGIC In these classifiers, the basic workflow is parameter setting, training (executed with `fit()`) and evaluation (executed with `transform()`).  Let's see how it works with two common classifiers, [Random Forests](https://spark.apache.org/docs/latest/ml-classification-regression.html#random-forest-classifier) and [Logistic Regression](https://spark.apache.org/docs/latest/ml-classification-regression.html#multinomial-logistic-regression).  
 # MAGIC 
 # MAGIC The next topic of concern is data sampling.
@@ -133,8 +123,12 @@ else:
 # reduce training set from 429k to about 10k for speed during the workshop
 sdf_train = sdf_train_full.sample(IHX_TRAINING_SAMPLE_FRACTION)
 
+
+# COMMAND ----------
+
+
 # Fit/train the model
-cf, grid = create_untrained_classifier("RF")
+cf, grid = create_untrained_classifier("RF", col_features)
 cfModel = cf.fit(sdf_train)
 
 # evaluate the model and show just a few columns about probabilistic and final decision values
@@ -145,7 +139,7 @@ display(sdf_predict)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Performance Evaluation
+# MAGIC ## Performance Evaluation
 # MAGIC An important part of training a classisier is knowing when things "worked"?  In spark, these objects known as evaluators and in general data science / ML these are often called 'metrics'.  Luckily, spark has several metrics to choose from, with collections in [single binary classifiers](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.evaluation.BinaryClassificationEvaluator.html) and [ranking evaluators](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.evaluation.RankingEvaluator.html#pyspark.ml.evaluation.RankingEvaluator).
 # MAGIC 
 # MAGIC We'll be using a custom score metric based on ranking called ["Cumulative Gain"](https://en.wikipedia.org/wiki/Discounted_cumulative_gain) and limit its depth to the first two deciles (or two tenths) of test data.  If you're intersting in reading more about how to create the metric, feel free to open and review the file `CUMULATIVE_GAIN_SCORE` in the utilities directory.
@@ -163,6 +157,9 @@ from pyspark.ml.functions import vector_to_array
 evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TOOLS"
 score_eval = evaluator.evaluate(sdf_predict)
 num_train = sdf_train.count()
+
+# COMMAND ----------
+
 str_title = f"Original DCG (2-decile, {num_train} samples): {score_eval}"
 fn_log(str_title)
 
@@ -177,36 +174,61 @@ evaluator_performance_curve(sdf_predict, str_title)    # a workshop function fro
 # MAGIC 
 # MAGIC Using the hints in this notebook, quickly build a method to accomplish these steps.
 # MAGIC 1. Create the `LogisticRegression` untrained classifier
-# MAGIC 2. Find and reuse the stratified dataframe for training
-# MAGIC 3. Fit/train the classifier with the training validator (using at least 10 % of training for validation)
-# MAGIC 4. Visualize the performance with the provided function `evaluator_performance_curve`
+# MAGIC 2. Visualize the performance with the provided function `evaluator_performance_curve`
+
+# COMMAND ----------
+
+#### CHALLENGE  ####
+
+# get the gradient boost classifier
+model_test = "??"
+# cf, grid = create_untrained_classifier(model_test, col_features)
+
+# fit/train the calssifier with the training validator
+# cfModel = cf.fit(???)
+
+# now perform prediction on our test set and try again
+# sdf_predict = cfModel.transform(sdf_test)
+# score_eval = evaluator.evaluate(sdf_predict)
+
+# step four - visualize performance
+# str_title = f"{model_test} DCG (2-decile, {num_train} samples): {score_eval})"
+# fn_log(str_title)
+# evaluator_performance_curve(??)
+
+#### CHALLENGE  ####
+
 
 # COMMAND ----------
 
 #### SOLUTION  ####
 
-# step one - get the gradient boost classifier
-cf, grid = create_untrained_classifier("LR")
+# get the gradient boost classifier
+model_test = "LR"
+cf, grid = create_untrained_classifier(model_test, col_features)
 
-# step two - reuse the stratified data frame...
-# sdf_transformed_sampled -- check!
-
-# step three - fit/train the calssifier with the training validator
-tvs.setEstimator(cf)
-tvs.setEstimatorParamMaps(grid)
-cfModel = tvs.fit(sdf_transformed_stratified)
-num_train = sdf_transformed_sampled.count()
+# fit/train the calssifier with the training validator
+cfModel = cf.fit(sdf_train)
 
 # now perform prediction on our test set and try again
 sdf_predict = cfModel.transform(sdf_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
 # step four - visualize performance
-str_title = f"Stratified, LR DCG (2-decile, {num_train} samples): {score_eval} (validation CGD: {cfModel.validationMetrics})"
+str_title = f"{model_test} DCG (2-decile, {num_train} samples): {score_eval})"
 fn_log(str_title)
 evaluator_performance_curve(sdf_predict, str_title)
+
 #### SOLUTION  ####
 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Extra Credit: Stratified Sampling!
+# MAGIC In some cass, you will have a huge class imbalance that is sinking your classifier.  For example in a true (1) versus false (0) label scenario, you may find that the number of samples with a false label greatly out numbers those with a true label.  [Stratified sampling](https://spark.apache.org/docs/3.1.2/mllib-statistics.html#stratified-sampling) is one technique that can help improve the performance of your method by manipulating the existing training data.  To explore this problem andsome examples more carefully, visit the script `extra_credit/1d_SAMPLE_IMBALANCE`.
+# MAGIC 
+# MAGIC Try it out and report back -- does it improve performance for this problem?
 
 # COMMAND ----------
 

@@ -1,6 +1,6 @@
 # Databricks notebook source
 from pyspark.sql import functions as F
-from pyspark.ml import Pipeline
+from pyspark.ml import Pipeline, PipelineModel
 
 def transformer_load(path_primary, path_secondary=None):
     """
@@ -16,6 +16,22 @@ def transformer_load(path_primary, path_secondary=None):
         fn_log(f"Primary failed, attempting to load secondary transformer '{path_secondary}'...")
         return transformer_load(path_secondary)
     pipe_loaded = Pipeline.read().load(path_primary)
+    return pipe_loaded
+  
+def pipeline_model_load(path_primary, path_secondary=None):
+    """
+    This function attempts to load a saved transformer, first from a primary then a secondary path.
+    It's used in this workshop to load from personal paths or workshop paths, if not available.  
+    """
+    try:
+        list_files = dbutils.fs.ls(path_primary)
+    except Exception as e:
+        if path_secondary is None:
+            fn_log(f"Failed to load transformer from '{path_primary}', no secondary provided, aborting...")
+            return None
+        fn_log(f"Primary failed, attempting to load secondary transformer '{path_secondary}'...")
+        return pipeline_model_load(path_secondary)
+    pipe_loaded = PipelineModel.read().load(path_primary)
     return pipe_loaded
 
 # COMMAND ----------
