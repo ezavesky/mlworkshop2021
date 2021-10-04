@@ -29,9 +29,8 @@
 
 sdf_transformed = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED)
 sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST)
-col_features = IHX_COL_VECTORIZED
+col_features = IHX_COL_VECTORIZED if IHX_COL_VECTORIZED in sdf_transformed.columns else IHX_COL_NORMALIZED
 sdf_transformed_sample = sdf_transformed.sample(IHX_TRAINING_SAMPLE_FRACTION)
-
 
 # COMMAND ----------
 
@@ -105,7 +104,7 @@ evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TO
 
 # start a new run with specific id, it will be closed at the end of this cell
 mlflow.end_run()  # doesn't hurt, always close a prior run
-run_name = f"mlopt-{method_test}-{dt.datetime.now().strftime('%m%d-%H%S')}"
+run_name = f"expert-{method_test}-{dt.datetime.now().strftime('%m%d-%H%S')}"
 with mlflow.start_run(run_name=run_name) as run:
     # proceed to train
     df_X, df_Y = pandas_features(sdf_transformed, col_features)
@@ -127,7 +126,7 @@ with mlflow.start_run(run_name=run_name) as run:
     cvModel = cf.fit(df_X, df_Y, eval_metric='auc')
     mlflow.sklearn.log_model(cvModel, "core-model")
     mlflow.log_params(param_learn)
-    mlflow.set_tag("search-type", "none")
+    mlflow.set_tag("search-type", "direct")
 
     # proceed to predict...
     df_X, df_Y = pandas_features(sdf_transformed_test, col_features)
@@ -146,23 +145,50 @@ with mlflow.start_run(run_name=run_name) as run:
     mlflow.log_metric(evaluator.getMetricName(), score_eval)
 
     # plot a figure and log it to mlflow
-    str_title = f"Grid-{method_test} CGD (2-decile): {round(score_eval, 3)}"
+    str_title = f"Grid-{method_test} DCG (2-decile): {round(score_eval, 3)}"
     fn_log(str_title)
     fig = evaluator_performance_curve(sdf_predict, str_title)
     mlflow.log_figure(fig, "grid-gcd.png")
 
 
+# COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## Retrain with Full Sample
+# MAGIC For a fair comparison, we'll also train our LR and RF models with full data.
 
 # COMMAND ----------
 
+for method_test in ["LR", "RF"]:  # iterate through methods to test
+    mlflow.end_run()  # doesn't hurt, always close a prior run
+    run_name = f"full-{method_test}-{dt.datetime.now().strftime('%m%d-%H%S')}"
 
+    # start a new run with specific id, it will be closed at the end of this cell
+    with mlflow.start_run(run_name=run_name) as run:
+        cf, grid = create_untrained_classifier(method_test, col_features, False)   # step one - get the regression classifier
+        evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TOOLS"
+        cvModel = cf.fit(sdf_transformed)
+
+        # now perform prediction on our test set and try again
+        sdf_predict = cvModel.transform(sdf_transformed_test)
+        score_eval = evaluator.evaluate(sdf_predict)
+        
+        # set params in logger
+        best_hyperparam = param_from_model(grid, cf)        
+        mlflow.log_params(best_hyperparam)  # not available here!
+        mlflow.spark.log_model(cvModel, "core-model")
+        mlflow.set_tag("search-type", "direct")
+
+        str_title = f"Direct-{method_test} DCG (2-decile): {round(score_eval, 3)} "
+        fn_log(str_title)
+        evaluator_performance_curve(sdf_predict, str_title)
+    fn_log(f"Completed evaluation with method {method_test}...")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Looking for Results
-# MAGIC We used our mlflow structure to save the performance and model directly, so when we're ready to go, it should be directly accessible. Go back toyour tracking notebook `MLWorkshop2021` (under `Workspace` -> `ID@DOMAIN` -> `MLWorkshop2021`) to visualize the exact results!
+# MAGIC We used our mlflow structure to save the performance and model directly, so when we're ready to go, it should be directly accessible. Go back to your tracking notebook `MLWorkshop2021` (under `Workspace` -> `ID@DOMAIN` -> `MLWorkshop2021`) to explore the saved model and perforamnce.
 
 # COMMAND ----------
 

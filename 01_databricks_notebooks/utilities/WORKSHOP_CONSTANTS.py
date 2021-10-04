@@ -127,7 +127,8 @@ def fn_log(str_print):   # place holder for logging
     print(str_print)
 
 def is_workshop_admin():
-    return USER_ID in ['ez2685']
+    return False
+    #return USER_ID in ['ez2685']
 
 # COMMAND ----------
 
