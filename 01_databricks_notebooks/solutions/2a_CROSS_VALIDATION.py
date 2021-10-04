@@ -29,7 +29,7 @@
 
 sdf_transformed = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED)
 sdf_transformed_test = spark.read.format('delta').load(IHX_GOLD_TRANSFORMED_TEST)
-col_features = IHX_COL_VECTORIZED
+col_features = IHX_COL_VECTORIZED if IHX_COL_VECTORIZED in sdf_transformed.columns else IHX_COL_NORMALIZED
 sdf_transformed_sample = sdf_transformed.sample(IHX_TRAINING_SAMPLE_FRACTION)
 
 
@@ -51,12 +51,18 @@ sdf_transformed_sample = sdf_transformed.sample(IHX_TRAINING_SAMPLE_FRACTION)
 
 # COMMAND ----------
 
+# MAGIC %run ../utilities/MLFLOW_TOOLS
+
+# COMMAND ----------
+
 from pyspark.ml.tuning import CrossValidator
 
-method_test = "RF"
+# special command to engage in model tracking (coming up below)
+experiment = databricks_mlflow_create(MLFLOW_EXPERIMENT)
+
+method_test = "LR"
 cf, grid = create_untrained_classifier(method_test, col_features, False)   # step one - get the regression classifier
 evaluator = evaluator_obj_get('CG2D')   # a workshop function from "EVALUATOR_TOOLS"
-cvModel = cf.fit(sdf_transformed_sample)
 crossval = CrossValidator(estimator=cf, estimatorParamMaps=grid,
                           evaluator=evaluator, numFolds=3)  # use 3+ folds in practice
 
@@ -68,7 +74,7 @@ fn_log(f"Average Cross-fold Metrics {cvModel.avgMetrics}")
 sdf_predict = cvModel.transform(sdf_transformed_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
-str_title = f"Xfold-{method_test} CGD (2-decile): {round(score_eval, 3)} "
+str_title = f"Xfold-{method_test} DCG (2-decile): {round(score_eval, 3)} "
 fn_log(str_title)
 evaluator_performance_curve(sdf_predict, str_title)
 
@@ -89,10 +95,6 @@ evaluator_performance_curve(sdf_predict, str_title)
 # MAGIC             * **Model** - _a standard format for packaging machine learning models and code_
 # MAGIC 
 # MAGIC ... but we'll focus on those components below a run in the workshop.
-
-# COMMAND ----------
-
-# MAGIC %run ../utilities/MLFLOW_TOOLS
 
 # COMMAND ----------
 
@@ -139,7 +141,7 @@ sdf_predict = cvModel.transform(sdf_transformed_test)
 score_eval = evaluator.evaluate(sdf_predict)
 
 # plot the performance figure
-str_title = f"Xfold-{method_test} CGD (2-decile): {round(score_eval, 3)} "
+str_title = f"Xfold-{method_test} DCG (2-decile): {round(score_eval, 3)} "
 fn_log(str_title)
 fig = evaluator_performance_curve(sdf_predict, str_title)
 
@@ -167,6 +169,30 @@ f.close()
 # MAGIC 2. Use [parameter logging](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_param) to record the value of chosen columns (`col_features`) and the sampel fraction (`IHX_TRAINING_SAMPLE_FRACTION`)
 # MAGIC 3. Log specific [metrics](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_metric) like the evaluated metric stored in `score_eval`  on the testing dataset.
 # MAGIC 4. Log the [generated graphic/metric](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_figure) that was generated above and stored in the variable `fig`.
+
+# COMMAND ----------
+
+#### CHALLENGE #### 
+
+# write some various metrics, params, etc.
+# mlflow.set_tag("???", "??")
+# mlflow.log_param("??", ???)
+# mlflow.log_metric("???", ???)
+mlflow.log_text(f"{dt.datetime.now()}: this would be a complete log to save...", 'log_text.txt')
+
+# plot a figure and log it to mlflow
+# the variable `fig` is provided above, how can you write it to a saved artifact
+# mlflow.log_figure(???)
+
+#### CHALLENGE #### 
+
+# you can also write a temp file...
+mlflow.log_artifact(f.name, 'temp_text.txt')
+
+# and hte model artifact
+mlflow.spark.log_model(cvModel, "spark-model")
+
+
 
 # COMMAND ----------
 

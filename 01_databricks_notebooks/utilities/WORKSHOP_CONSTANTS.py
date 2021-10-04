@@ -11,8 +11,8 @@ MLW_DATA_ROOT = "abfss://mlworkshop2021@STORAGE"
 MLW_DATA_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"
 
 # the "gold" data reference - in CDO parlence, this generally meant the data has been cleaned and indexed optimally
-IHX_GOLD = f"{MLW_DATA_ROOT}/ihx/IHX_gold"
-IHX_GOLD_TESTING = f"{IHX_GOLD}-testing"
+IHX_BRONZE = f"{MLW_DATA_ROOT}/ihx/IHX_bronze"
+IHX_BRONZE_TEST = f"{IHX_BRONZE}-test"
 
 # some feature column names
 IHX_COL_VECTORIZED = "vectorized"
@@ -25,9 +25,11 @@ IHX_COL_PREDICT_BASE = "predict_{base}"
 IHX_VECTORIZER_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_Vectorizer"
 IHX_NORM_L2_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_L2Normalizer"
 IHX_NORM_MINMAX_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_MinMaxScaler"
+IHX_STDSCALE_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Feature_StdScaler"
+IHX_TRANSFORMER_MODEL_PATH = f"{MLW_DATA_ROOT}/ihx/IHX_Transformer_Model"
 
 # intermediate data from vecctorization
-IHX_GOLD_TRANSFORMED = f"{MLW_DATA_ROOT}/ihx/IHX_gold_transformed"
+IHX_GOLD_TRANSFORMED = f"{MLW_DATA_ROOT}/ihx_gold/IHX_gold"
 IHX_GOLD_TRANSFORMED_TEST = f"{IHX_GOLD_TRANSFORMED}-test"
 
 # full evaluator variables
@@ -37,7 +39,7 @@ IHX_TRAINING_SAMPLE_FRACTION = 0.11   # reduce training set from 429k to about 1
 
 # MAGIC %r
 # MAGIC MLW_DATA_ROOT <- "abfss://mlworkshop2021@STORAGE"
-# MAGIC IHX_GOLD <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
+# MAGIC IHX_BRONZE <- paste(MLW_DATA_ROOT, "/ihx/IHX_gold")
 # MAGIC 
 # MAGIC # Getting errors running on another cluster? Consider commenting out this cell...
 
@@ -59,14 +61,29 @@ MLFLOW_EXPERIMENT = "MLWorkshop2021"   # default experiment name for centralized
 
 # COMMAND ----------
 
+import datetime as dt
+
 # the last command assumes you make a scratch directory that you own (or can write to) with your ATTID
 # for instructions on how to create your own scratch, head to notebook `1b_DATA_WRITE_EXAMPLES`
-SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
+if dt.datetime.now() > dt.datetime(month=10, year=2021, day=14):     # the shared scratch will be disabled after Oct 13
+    SCATCH_ROOT = f"abfss://{USER_ID}@STORAGE"
+
+# No time to make your own scratch? no problem, you can use the temp container created for the workshop.
+# NOTE: this container will be deactivated within a week or so of the workshop!
+else:
+    SCATCH_ROOT = f"abfss://mlworkshop2021-writeable@STORAGE/{USER_ID}"
 
 # feature processing paths
 SCRATCH_IHX_VECTORIZER_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_Vectorizer"
 SCRATCH_IHX_MINMAX_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_MinMaxScaler"
 SCRATCH_IHX_L2_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_L2Normalizer"
+SCRATCH_IHX_STDSCALE_PATH = f"{SCATCH_ROOT}/ihx/IHX_Feature_StdScaler"
+SCRATCH_IHX_TRANSFORMER_MODEL_PATH = f"{SCATCH_ROOT}/ihx/IHX_Transformer_Model"
+
+# intermediate data from vecctorization
+SCRATCH_IHX_GOLD_TRANSFORMED = f"{SCATCH_ROOT}/ihx_gold/IHX_gold"
+SCRATCH_IHX_GOLD_TRANSFORMED_TEST = f"{SCRATCH_IHX_GOLD_TRANSFORMED}-test"
+
 
 # this may not work for sure, but let's try to format an Azure Portal for above...
 SCRATCH_URL = f"https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/{USER_ID}/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None"

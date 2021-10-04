@@ -54,13 +54,13 @@
 # this code is commented out because it's just provided for reference...
 #   namely, how we got the IHX data into an ADLSg2 storage container
 # NOTE: You may not be able to run the first command this due to privilages, but if you've created a 
-IHX_GOLD_UNPARTITIONED = f"{IHX_GOLD}-unpartitioned"
+IHX_BRONZE_UNPARTITIONED = f"{IHX_BRONZE}-unpartitioned"
 if is_workshop_admin():
     # you may need to delete a prior version because delta will otherwise optimize it as an update
     try:
-        dbutils.fs.rm(IHX_GOLD, True)   # recursively delete what was there before
-        dbutils.fs.rm(IHX_GOLD_TESTING, True)
-        dbutils.fs.rm(IHX_GOLD_UNPARTITIONED, True)
+        dbutils.fs.rm(IHX_BRONZE, True)   # recursively delete what was there before
+        dbutils.fs.rm(IHX_BRONZE_TEST, True)
+        dbutils.fs.rm(IHX_BRONZE_UNPARTITIONED, True)
     except Excpetion as e:
         fn_log("Error clearing parititon, maybe it didn't exist...")
 
@@ -77,11 +77,11 @@ if is_workshop_admin():
         .option('header', True)
         .load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
     )
-    sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_GOLD_UNPARTITIONED}")
+    sdf_ihx.write.format('delta').mode('overwrite').save(f"{IHX_BRONZE_UNPARTITIONED}")
     # scratch space under your user ID, the seccond command should work.
     (sdf_ihx.repartition('assignment_start_month')
          .write.format('delta').partitionBy('assignment_start_month')
-         .mode('overwrite').save(f"{IHX_GOLD}"))
+         .mode('overwrite').save(f"{IHX_BRONZE}"))
 
     # now read and repartition the testing data as well
     sdf_ihx_testing = (
@@ -95,25 +95,25 @@ if is_workshop_admin():
     # scratch space under your user ID, the seccond command should work.
     (sdf_ihx_testing.repartition('assignment_start_month')
          .write.format('delta').partitionBy('assignment_start_month')
-         .mode('overwrite').save(f"{IHX_GOLD_TESTING}"))
+         .mode('overwrite').save(f"{IHX_BRONZE_TEST}"))
 
 
 # COMMAND ----------
 
-list_files = dbutils.fs.ls(IHX_GOLD_UNPARTITIONED)
-fn_log(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_GOLD_UNPARTITIONED}'")
+list_files = dbutils.fs.ls(IHX_BRONZE_UNPARTITIONED)
+fn_log(f"## Files in non-partitioned format... {len(list_files)} total from path '{IHX_BRONZE_UNPARTITIONED}'")
 for file_ref in list_files[:5]:   # just pring the first five
     fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 fn_log("")
     
-list_files = dbutils.fs.ls(IHX_GOLD)
-fn_log(f"## Files in month-partitioned format... {len(list_files)} total from path '{IHX_GOLD}'")
+list_files = dbutils.fs.ls(IHX_BRONZE)
+fn_log(f"## Files in month-partitioned format... {len(list_files)} total from path '{IHX_BRONZE}'")
 for file_ref in list_files[:5]:   # just pring the first five
     fn_log(f"{file_ref.name}: {file_ref.size} bytes")
 
 # COMMAND ----------
 
-path_sub = f"{IHX_GOLD}/{list_files[-1].name}"
+path_sub = f"{IHX_BRONZE}/{list_files[-1].name}"
 list_files_sub = dbutils.fs.ls(path_sub)
 fn_log(f"## Files in region-partitioned format... {len(list_files_sub)} total from path '{path_sub}'")
 for file_ref in list_files_sub[:5]:   # just pring the first five
@@ -129,7 +129,7 @@ for file_ref in list_files_sub[:5]:   # just pring the first five
 # COMMAND ----------
 
 from pyspark.sql import functions as F
-sdf_ihx = spark.read.format('delta').load(f"{IHX_GOLD}")
+sdf_ihx = spark.read.format('delta').load(f"{IHX_BRONZE}")
 display(sdf_ihx
    .groupBy('assignment_start_month')
    .agg(F.count(F.col('assignment_start_month')).alias('count'))
@@ -187,45 +187,6 @@ fn_log(f"\nIf everything worked, you should be able to open this url (you'll nee
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Writing to a CSV
-# MAGIC Generally this should be avoided  -- because we don't want to locally download or share data from a cloud source -- but the request is frequent enough that it might be helpful.  If you need more of a walkthrough consider [this single CSV reference](https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/).
-
-# COMMAND ----------
-
-import numpy as np
-import pandas as pd
-df_random = pd.DataFrame(np.random.rand(100,4), columns=[f"rand{i:02}" for i in range(4)])
-sdf_random = spark.createDataFrame(df_random)
-display(sdf_random)
-
-def write_csv_single(sdf, path_target):
-    """A utility function to write a spark data frame (`sdf`) to a single CSV destination (`path_target`)..."""
-    try:
-        dbutils.fs.rm(path_target, recurse=True)
-    except Exception as e:
-        pass
-    # the main trick is to reparition to just `1` file...
-    sdf_random.repartition(1).write.format('csv').option('overwrite', True).option('header', True).save(path_target)
-    # find what else went there, looking for the one parquet split...
-    stat_file = [(fs.name, fs.size) for fs in dbutils.fs.ls(path_target) if fs.name.endswith('.csv')][0]
-    # move newly written to temp file
-    path_temp = f"{path_target}.temp"
-    dbutils.fs.mv(f"{path_target}/{stat_file[0]}", path_temp)
-    # clear just written hierarchy
-    dbutils.fs.rm(path_target, recurse=True)
-    # move temp file to single location
-    dbutils.fs.mv(path_temp, path_target)
-    fn_log(f"Wrote to CSV ... {path_target} ({stat_file[1]} bytes), check out the URL above for reference.")
-    
-
-path_csv_example = f"{SCATCH_ROOT}/mlworkshop2021_example.csv"
-write_csv_single(sdf_random, path_csv_example)
-
-    
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC Thanks for walking through this intro to data writes.  We demonstrated how to read and write to a personal scratch space with a few tips on developing optimal indexing when you write and creating individual CSVs.
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1c_COMPUTING_FEATURES` where we begin to create a feature pipeline in spark.
@@ -236,4 +197,5 @@ write_csv_single(sdf_random, path_csv_example)
 # MAGIC # Done with Writes!
 # MAGIC Still want more or have questions about more advanced topics?  Check out the directory `extra_credit` to find a few different notebooks that have more useful details.  Additionally, there are a lot of [advanced features for delta format](https://databricks.com/blog/2019/02/04/introducing-delta-time-travel-for-large-scale-data-lakes.html) that we don't dive into in this workshop.
 # MAGIC 
-# MAGIC - `1_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1a_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1b_WRITE_A_SINGLE_CSV` - Example code on writing a single CSV from a larger spark dataframe.

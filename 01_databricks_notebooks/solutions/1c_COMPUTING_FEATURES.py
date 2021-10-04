@@ -23,16 +23,20 @@
 
 # MAGIC %md
 # MAGIC # Basic ETL and Exploration
-# MAGIC Feature exploration by statistics...
+# MAGIC ETL is an acronym for extract, transform, and load and it's generally mean to encompass all of the steps required **before** you can actually do any machine learning on a problem.  Namely, it grabs the right raw data, merges, transforms, and fills-in all of the dirty parts to produce a more intermediate form of data.  Databrick's [training documentation](https://databricks.com/blog/2019/08/14/productionizing-machine-learning-with-delta-lake.html) defines the stages in this step as going from bronze, silver, to gold.
+# MAGIC 
+# MAGIC For the sake of brevity, we'll refer to our processed data as "GOLD" and leave the other steps to the reader!
+# MAGIC 
+# MAGIC ![Architecture Example](https://databricks.com/wp-content/uploads/2019/08/Delta-Lake-Multi-Hop-Architecture-Overview.png)
 
 # COMMAND ----------
 
 # load delta dataframe (it should be the same!)
 # flip over to notebook '1B' to see how this was written if you're curious!
-sdf_ihx_gold = spark.read.format('delta').load(f"{IHX_GOLD}")
+sdf_ihx_bronze = spark.read.format('delta').load(f"{IHX_BRONZE}")
 
-sdf_ihx_gold.printSchema()
-display(sdf_ihx_gold)
+sdf_ihx_bronze.printSchema()
+display(sdf_ihx_bronze)
 
 # COMMAND ----------
 
@@ -69,7 +73,7 @@ def get_feature_column_types(sdf_data, exclude_cols=[]):
     return feature_sets
 
 skip_columns = ['assignment_start_dt', IHX_COL_INDEX, IHX_COL_LABEL, 'is_train']
-dict_features = get_feature_column_types(sdf_ihx_gold, skip_columns)
+dict_features = get_feature_column_types(sdf_ihx_bronze, skip_columns)
 fn_log(f"### These columns were skipped: {dict_features['invalid']}\n\n")
 fn_log(f"### Are these features strings? {dict_features['string']}\n\n")
 fn_log(f"### Are these features numeric? {dict_features['numeric']}\n\n")
@@ -88,7 +92,7 @@ import ipywidgets as widgets
 
 # we're going to plot two graphs -- one over region, one over assignment month
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-df_regions = (sdf_ihx_gold
+df_regions = (sdf_ihx_bronze
     .groupBy('final_response', 'region').count().toPandas()
     .pivot(index='region',columns=['final_response'], values='count').fillna(0)
 )
@@ -96,7 +100,7 @@ df_regions.plot.bar(ax=ax1)
 ax1.set_yscale('log')   # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_yscale.html#matplotlib.axes.Axes.set_yscale
 ax1.grid()
 
-df_regions = (sdf_ihx_gold
+df_regions = (sdf_ihx_bronze
     .groupBy('final_response', 'assignment_start_month').count().toPandas()
     .pivot(index='assignment_start_month',columns=['final_response'], values='count').fillna(0)
 )
@@ -170,12 +174,34 @@ fn_log(f"Count of StringIndexer candidate columns {len(feature_cols_list)} ...")
 
 # COMMAND ----------
 
+
+from pyspark.ml.feature import VectorAssembler
+
+# define our hole set of columns as combination of stringindexed + numeric
+feature_cols_list += dict_features['numeric']
+feature_cols_list = list(set(feature_cols_list))
+col_vectorized = "vectorized"
+
+## CHALLENGE
+
+# note that we 'skip' invalid data, so we need to be sure and zero-fill values
+# assembler = VectorAssembler(inputCols=?, outputCol=?, handleInvalid=?)
+# stages_spark.append(assembler)
+
+## CHALLENGE
+
+fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
+
+
+# COMMAND ----------
+
 ## SOLUTION
 
 from pyspark.ml.feature import VectorAssembler
 
 # define our hole set of columns as combination of stringindexed + numeric
 feature_cols_list += dict_features['numeric']
+feature_cols_list = list(set(feature_cols_list))
 col_vectorized = "vectorized"
 # note that we 'skip' invalid data, so we need to be sure and zero-fill values
 assembler = VectorAssembler(inputCols=feature_cols_list, outputCol=col_vectorized, handleInvalid='skip')
@@ -197,14 +223,12 @@ fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Storing the Feature Pipeline
-# MAGIC After completing our feature processing pipeline, we'll write it!  Lucky for us, these objects are all spark-natives, so we can even persist them to cloud storage without batting an eye.  You can even check-out the individual stages (saved with a little metadata) in the [Azure Storage Continer](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None).
-# MAGIC 
-# MAGIC One step you may consider is [feature normalization](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) to our features.  Most learning methods work best with either L1 or L2 normalization instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *all three* in our classifier evaluation stage: no normalization, L2, and min/max
+# MAGIC ## Feature Normalization
+# MAGIC One step you may consider is [feature normalization](https://spark.apache.org/docs/latest/ml-features.html#normalizer) to our features.  Most learning methods work best with [mean/std-deviation scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StandardScaler.html) or [L1 or L2 normalization](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.Normalizer.html?highlight=normalizer#pyspark.ml.feature.Normalizer) instead of [min/max scaling](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.MinMaxScaler.html?highlight=minmax#pyspark.ml.feature.MinMaxScaler).  That said, we can be good data scientists and try *all three* in our classifier evaluation stage: no normalization, L2, and min/max
 
 # COMMAND ----------
 
-from pyspark.ml.feature import Normalizer, MinMaxScaler
+from pyspark.ml.feature import Normalizer, MinMaxScaler, StandardScaler
 from pyspark.ml import Pipeline
 
 pipe_vectorized = Pipeline(stages=stages_spark)
@@ -215,15 +239,28 @@ pipe_l2 = Pipeline(stages=stages_spark + [norm])
 minmax = MinMaxScaler(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
 pipe_minmax = Pipeline(stages=stages_spark + [minmax])
 
+stdscale = StandardScaler(inputCol=col_vectorized, outputCol=IHX_COL_NORMALIZED)
+pipe_std = Pipeline(stages=stages_spark + [stdscale])
+
 # SPECIAL NOTE: These pipelines are **UNTRAINED**.  Training them is a simple matter of running data through the `fit()` function, but we're not doing that here for simplicity.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Storing the Feature Pipeline
+# MAGIC After completing our feature processing pipeline, we'll write it!  Lucky for us, these objects are all spark-natives, so we can even persist them to cloud storage without batting an eye.  You can even check-out the individual stages (saved with a little metadata) in the [Azure Storage Continer](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None).
+
+# COMMAND ----------
 
 if is_workshop_admin():  # again, these are for the workshop admin only; hopefully you can write your own to scratch below!
     quiet_delete(IHX_VECTORIZER_PATH)
     pipe_vectorized.write().save(IHX_VECTORIZER_PATH)
-    quiet_delete(IHX_MINMAX_PATH)
-    pipe_minmax.write().save(IHX_MINMAX_PATH)
+    quiet_delete(IHX_NORM_MINMAX_PATH)
+    pipe_minmax.write().save(IHX_NORM_MINMAX_PATH)
     quiet_delete(IHX_NORM_L2_PATH)
     pipe_l2.write().save(IHX_NORM_L2_PATH)
+    quiet_delete(IHX_STDSCALE_PATH)
+    pipe_std.write().save(IHX_STDSCALE_PATH)
 
 # attempt to write to user scratch space!
 try: 
@@ -233,6 +270,8 @@ try:
     pipe_minmax.write().save(SCRATCH_IHX_MINMAX_PATH)
     quiet_delete(SCRATCH_IHX_L2_PATH)
     pipe_l2.write().save(SCRATCH_IHX_L2_PATH)
+    quiet_delete(SCRATCH_IHX_STDSCALE_PATH)
+    pipe_std.write().save(SCRATCH_IHX_STDSCALE_PATH)
     fn_log(f"Wrote to your scratch space, you can check it out on the portal... \n{SCRATCH_URL}")
 except Exception as e:
     fn_log(f"Uh oh, did you create a user scratch space? If not, that's okay, you can use the workshop's data! (Error {e})")
@@ -243,7 +282,95 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Thanks for walking through this intro to feature writing.  We visualized a few features and built a pipeline that will transform our raw data into a dense numerical feature vector for subsequent learning.
+# MAGIC # Writing Transformed Features
+# MAGIC Before we leave the script for feature preparation, let's proceed to transform our raw features into vectors.  One special note is that we still need to "fit" (or train) the feature transformation pipeline.  However, there was a glaring hole in prior work --- we skipped bad (or missing) values.  
+# MAGIC 
+# MAGIC To be explicit, we would normally complete all these steps before we can claim ETL is done...
+# MAGIC 
+# MAGIC 1. Fit/train the transformer pipeline (into a pipeline "model")
+# MAGIC 2. Write the trained transformer pipeline "model" to disk for reuse on new testing data
+# MAGIC 3. Transform our testing data and write it to disk as well for faster reuse in ML training
+# MAGIC 
+# MAGIC To help us along, we'll load a helper script, `TRANSFORMER_TOOLS`, that is reused to load and "fill" empty values that we may encounter for new data.
+
+# COMMAND ----------
+
+# MAGIC %run ../utilities/TRANSFORMER_TOOLS
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Extra Credit - Normalizers
+# MAGIC We used the direct vectorizer pipeline, but you can experiment with the min/max, l2, and other vectorizer and normalizers.  This snippet of code below would help to get you going on other paths.
+
+# COMMAND ----------
+
+
+# load untrained model first
+if True:    # for now, use the std scalar vectors
+    col_features = IHX_COL_NORMALIZED  # IHX_COL_VECTORIZED
+    pipe_original = pipe_std
+
+else:    # however, you can experiment with features...
+    # either LOAD THEM
+    # for now, we'll use the 'vectorized' pipeline and column name
+    col_features = IHX_COL_VECTORIZED   # IHX_COL_NORMALIZED
+    pipe_original = pipe_vectorized
+    # pipe_transform_untrained = transformer_load(SCRATCH_IHX_MINMAX_PATH, IHX_MINMAX_PATH)
+    # ... or set them directly
+    # col_features = IHX_COL_NORMALIZED
+    # pipe_original = pipe_l2
+
+# print the new pipeline
+fn_log(pipe_original)
+fn_log(pipe_original.stages)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Transformed Features
+# MAGIC The above cell demonstrated a number of stages for string and numerical processing. 
+# MAGIC 
+# MAGIC However, recall that we must `fillna()` certain columns with the right type of data (e.g. *string* and *numeric*). The cell below demonstrates the transform of input features into a dense vector.  
+
+# COMMAND ----------
+
+# attempt to train model on all of the data
+sdf_filled = transformer_feature_fillna(sdf_ihx_bronze)
+
+# proceed to fit/train the transformer
+pipe_transform = pipe_original.fit(sdf_filled)
+# print the new pipeline
+fn_log(pipe_transform)
+fn_log(pipe_transform.stages)
+
+# COMMAND ----------
+
+# now transform data...
+display(sdf_filled)
+sdf_transformed = pipe_transform.transform(sdf_filled)
+sdf_transformed = sdf_transformed.select(F.col(IHX_COL_LABEL), F.col(IHX_COL_INDEX), F.col(col_features))
+display(sdf_transformed.limit(10))
+
+# do the same for our TESTING data
+sdf_ihx_bronze_testing = spark.read.format('delta').load(f"{IHX_BRONZE_TEST}")
+sdf_transformed_test = pipe_transform.transform(transformer_feature_fillna(sdf_ihx_bronze_testing))
+
+# write out if admin
+if is_workshop_admin():
+    quiet_delete(IHX_GOLD_TRANSFORMED)
+    quiet_delete(IHX_GOLD_TRANSFORMED_TEST)
+    sdf_transformed.write.format('delta').save(IHX_GOLD_TRANSFORMED)
+    sdf_transformed_test.write.format('delta').save(IHX_GOLD_TRANSFORMED_TEST)
+    quiet_delete(IHX_TRANSFORMER_MODEL_PATH)
+    pipe_transform.write().save(IHX_TRANSFORMER_MODEL_PATH)
+    
+# TODO: Write out in your own space? Check out the example above for scratch space writing...
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Thanks for walking through this intro to feature writing.  We visualized a few features and built a pipeline that will transform our raw data into a dense numerical feature vector for subsequent learning.  If you're looking for more experiments, you can also scroll upward to the 'Extra Credit - Normalizers' and experiment with loading different normalizers for the data.  Note that you'll need to save the features to a new scratch space as well!
 # MAGIC 
 # MAGIC When you're ready, head on to the next script `1d_MODELING_AND_METRICS` that includes training a basic model in Databricks with spark.
 

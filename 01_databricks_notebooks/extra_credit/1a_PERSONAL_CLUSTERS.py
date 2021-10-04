@@ -32,3 +32,6 @@
 # MAGIC 
 # MAGIC _(update 08/29/21)_
 # MAGIC - You can follow the directions above, which have been evaluated by the DSAIR team or use this [how-to create a personal cluster guide in CDO reference](https://INFO_SITE/sites/data/SitePages/Creating-a-Databricks-Cluster.aspx).
+# MAGIC 
+# MAGIC _(update 09/28/21)_
+# MAGIC - Databricks as released [9.1 LTS](https://docs.microsoft.com/en-us/azure/databricks/release-notes/runtime/9.1ml) recently, which may be the next/preferred migration image if you're starting your own cluster.
