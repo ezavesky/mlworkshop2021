@@ -201,29 +201,6 @@ model_test = "??"
 
 # COMMAND ----------
 
-#### SOLUTION  ####
-
-# get the gradient boost classifier
-model_test = "LR"
-cf, grid = create_untrained_classifier(model_test, col_features)
-
-# fit/train the calssifier with the training validator
-cfModel = cf.fit(sdf_train)
-
-# now perform prediction on our test set and try again
-sdf_predict = cfModel.transform(sdf_test)
-score_eval = evaluator.evaluate(sdf_predict)
-
-# step four - visualize performance
-str_title = f"{model_test} DCG (2-decile, {num_train} samples): {score_eval})"
-fn_log(str_title)
-evaluator_performance_curve(sdf_predict, str_title)
-
-#### SOLUTION  ####
-
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ### Extra Credit: Stratified Sampling!
 # MAGIC In some cass, you will have a huge class imbalance that is sinking your classifier.  For example in a true (1) versus false (0) label scenario, you may find that the number of samples with a false label greatly out numbers those with a true label.  [Stratified sampling](https://spark.apache.org/docs/3.1.2/mllib-statistics.html#stratified-sampling) is one technique that can help improve the performance of your method by manipulating the existing training data.  To explore this problem andsome examples more carefully, visit the script `extra_credit/1d_SAMPLE_IMBALANCE`.

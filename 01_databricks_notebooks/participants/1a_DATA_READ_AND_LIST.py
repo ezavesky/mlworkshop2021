@@ -238,21 +238,6 @@ display(sdf_sub)
 
 # COMMAND ----------
 
-# here's a helper on how to write a list
-columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', 'hsd_top_competitor_name']
-
-### SOLUTION
-
-# here, we display only items in the 'SE' (south east region)
-sdf_sub = (sdf_ihx_bronze
-    .filter(F.col('region') == F.lit('S'))
-    .select(columns_subset)
-)
-### SOLUTION
-display(sdf_sub)
-
-# COMMAND ----------
-
 # MAGIC %md 
 # MAGIC ## Lazy Operations
 # MAGIC One of the key differences between Pandas and Spark dataframes is eager versus lazy execution. In PySpark, operations are delayed until a result is actually needed in the pipeline. [A Brief Introduction to PySpark](https://towardsdatascience.com/a-brief-introduction-to-pyspark-ff4284701873).  In practicality this means your read, filtering, and other operatinos can be compounded onto a single dataframe and they won't be executed until needed.
@@ -309,23 +294,6 @@ sdf_prices = (sdf_ihx_bronze
 #    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
 )
 ## CHALLENGE
-
-display(sdf_prices)
-
-# COMMAND ----------
-
-## SOLUTION
-
-# continuing from above, let's average prices from our competitors 
-sdf_prices = (sdf_ihx_bronze
-    .groupBy(F.col('region'), F.col('hsd_top_competitor_name'))   # group by 
-    .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
-        F.max('hsd_top_competitor_price').alias('max'), 
-        F.avg('hsd_top_competitor_price').alias('average'))
-    .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
-    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
-)
-## SOLUTION
 
 display(sdf_prices)
 

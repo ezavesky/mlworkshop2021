@@ -195,23 +195,6 @@ fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...
 
 # COMMAND ----------
 
-## SOLUTION
-
-from pyspark.ml.feature import VectorAssembler
-
-# define our hole set of columns as combination of stringindexed + numeric
-feature_cols_list += dict_features['numeric']
-feature_cols_list = list(set(feature_cols_list))
-col_vectorized = "vectorized"
-# note that we 'skip' invalid data, so we need to be sure and zero-fill values
-assembler = VectorAssembler(inputCols=feature_cols_list, outputCol=col_vectorized, handleInvalid='skip')
-stages_spark.append(assembler)
-fn_log(f"Count of VectorAssembler candidate columns {len(feature_cols_list)} ...")
-
-## SOLUTION
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ### Extra Credit: Imputing
 # MAGIC There's an important message above with the 'skip' comment: invalid values are skipped.  Of course this can be avoided if we use a function like [`fillNa()`](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.fillna.html?highlight=fillna#pyspark.sql.DataFrame.fillna) but that fill value may not make sense for all columns.  Can we do better? You betcha'.
