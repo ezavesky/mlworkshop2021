@@ -23,9 +23,8 @@
 # MAGIC You're ready to start the **cloned notebook** on your **personal cluster**, right? Great!
 # MAGIC 
 # MAGIC 1. Look at the drop down and find the personal cluster you created and click/select.
-# MAGIC     * **NOTE** Please connect to the server "CDO-MLWorkshop2021" for the workshop today!
 # MAGIC 2. The combo box will update for your own cluster, click that region again and select "Start Cluster"
-# MAGIC     * _Pro Tip_: The next time you start this notebook it should remember what you used so you can auto-start by trying to run a cell.
+# MAGIC   * _Pro Tip_: The next time you start this notebook it should remember what you used so you can auto-start by trying to run a cell.
 # MAGIC 3. Give the cluster a minute or two to spin up and an indicator will be a green, filled circle for a _"standard cluster"_ or a green lightening bolt for a _"high concurrency"_ cluster.
 # MAGIC 4. When you're ready click on a cell and hit command-enter or click the indicator _"Run All"_ on the top ribbon to run all cells.
 # MAGIC 5. *Pat on back* or *high five*
@@ -41,7 +40,7 @@
 # MAGIC 
 # MAGIC One advantage of the Databricks environment is that it natively speaks "cloud" with almost any data dialect (e.g. data format or protocol) you can imagine.  In the following sections, we'll read a few different formats with hints on hooking up to real ADLSv2 (Azure Data Lake Service, version 2) sources that are in-process or have already been migrated from KM (kings mountain) or RDL (research data lake)
 # MAGIC 
-# MAGIC - You can find a tentative list of datasources created for some [SAS Resources](https://wiki.SERVICE_SITE/x/wyjGUw) and via the [Data Platform Migration Schedul](https://INFO_SITE/:x:/r/sites/KMDataMigration-UserCommunication/_layouts/15/Doc.aspx?sourcedoc=%7B735B3B59-697D-4A7A-B6C7-1C097D34E516%7D&file=End%20User%20Communication%20-%20Data%20Migration%20Schedule.xlsx&action=default&mobileredirect=true&cid=acafda66-656a-42dd-b37d-aaef427ff9eb). 
+# MAGIC - You can find a tentative list of datasources created for some [SAS Resources](https://wiki.SERVICE_SITE/x/wyjGUw) and via the [Data Platform Migration Schedule](https://INFO_SITE/:x:/r/sites/KMDataMigration-UserCommunication/_layouts/15/Doc.aspx?sourcedoc=%7B735B3B59-697D-4A7A-B6C7-1C097D34E516%7D&file=End%20User%20Communication%20-%20Data%20Migration%20Schedule.xlsx&action=default&mobileredirect=true&cid=acafda66-656a-42dd-b37d-aaef427ff9eb). 
 # MAGIC - You don't need to be able to run `ls` on the cloud resources.  However, to be able to list all resources currently in the cloud stored under the CDO/Azure moniker, you should apply for the right [UPSTART Role - 'AZURE CDO DATALAKE PROD DATASET LIST '](https://AUTH_SITE/upstart-az/UPSTART/UPSTART_VIEW_ACCESS.cgi?BeEUApCoDHEQAGCEDbAMBCAjEgDSBcAvEnBFDgEGDSCCALALAVEbBsDsBXBUEpBtBHEKBvDKEtEpBgBdCHBNDSBiCTCgDRCnCdEHEQDkBtDJCuEWAGAx~AZURE+CDO+DATALAKE+PROD+DATASET+LIST~VE).
 
 # COMMAND ----------
@@ -67,7 +66,9 @@ except Exception as e:
 # MAGIC * Azure portal (browser) - `https://PORTAL/#blade/Microsoft_Azure_Storage/....`
 # MAGIC * azcopy url (CLI, custom apps) - `https://blackbirdproddatastore.blob.core.windows.net/mlworkshop2021/ihx/`
 # MAGIC 
-# MAGIC Although you can't move or delete items, you can view, download, and upload (where permissions allow) through the Azure Portal.  Check out this [Azure Portal URL](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None) to view the workshop's primary data store.
+# MAGIC Although you can't move or delete items, you can view, download, and upload (where permissions allow) through the Azure Portal.  
+# MAGIC 
+# MAGIC **FUN:** Check out this [Azure Portal URL](https://PORTAL/#blade/Microsoft_Azure_Storage/ContainerMenuBlade/overview/storageAccountId/%2Fsubscriptions%2F81b4ec93-f52f-4194-9ad9-57e636bcd0b6%2FresourceGroups%2Fblackbird-prod-storage-rg%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fblackbirdproddatastore/path/mlworkshop2021/etag/%220x8D9766DE75EA338%22/defaultEncryptionScope/%24account-encryption-key/denyEncryptionScopeOverride//defaultId//publicAccessVal/None) to view the workshop's primary data store.
 
 # COMMAND ----------
 
@@ -76,21 +77,28 @@ except Exception as e:
 # MAGIC Data reads typically happen with Spark commands.
 # MAGIC - CSV - needs no explination, right? consider this as your tried-and-true (but equally antiquated) data format; we advise looking to delta for dramatic speed improvements! 
 # MAGIC - [ORC](https://www.learntospark.com/2020/02/how-to-read-and-write-orc-file-in-apache-spark.html) - an early hadoop-friendly format using data striping for faster operations
-# MAGIC - [Delta](https://databricks.com/blog/2019/08/21/diving-into-delta-lake-unpacking-the-transaction-log.html) - a Databricks developed, open source format that optimizes written tables for fast columnar scans and includes "time machine" versioning between writes; it's also the foundation of "Delta Lake" which is a Databricks wrapper product for managing these tables
+# MAGIC - [Delta](https://databricks.com/blog/2019/08/21/diving-into-delta-lake-unpacking-the-transaction-log.html) - a Ddatabricks developed, open source format that optimizes written tables for fast columnar scans and includes "time machine" versioning between writes; it's also the foundation of "Delta Lake" which is a Databricks wrapper product for managing these tables
 # MAGIC   - **NOTE**: We can point to other speed tests for evidence, but tables in delta format are dramatically faster to read and execute queries on versus ORC, CSV, etc.
 
 # COMMAND ----------
 
 # load spark data frame from CSV
-sdf_ihx = spark.read.format('csv').option('header', True).option('parser', '\t').load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+sdf_ihx = (
+    spark.read.format('csv')
+    .option('nullValue', 'NULL')
+    .option("inferSchema", "true")
+    .option("sep", "\t")
+    .option('header', True)
+    .load(f"{MLW_DATA_ROOT}/ihx/IHX-training.csv")
+)
 display(sdf_ihx)
 
 # COMMAND ----------
 
 # load delta dataframe (it should be the same!)
 # flip over to notebook 'B' to see how this was written if you're curious!
-sdf_ihx_gold = spark.read.format('delta').load(f"{IHX_GOLD}")
-display(sdf_ihx_gold)
+sdf_ihx_bronze = spark.read.format('delta').load(f"{IHX_BRONZE}")
+display(sdf_ihx_bronze)
 
 # COMMAND ----------
 
@@ -114,14 +122,14 @@ display(sdf_ihx_gold)
 
 # unfortuantely, it's not easy to read from ABFSS (Azure) sources in R, but you can make a "bridge"
 # this bridge exists in the spark context, which is reset / reloaded for every restart of your notebook
-sdf_ihx_gold.createOrReplaceTempView("sdf_ihx_gold")
+sdf_ihx_bronze.createOrReplaceTempView("sdf_ihx_bronze")
 
 # COMMAND ----------
 
 # MAGIC %r 
 # MAGIC # easily moving from ABFSS (cloud data sets into R can be done by temporarily registering data in a spark session)
 # MAGIC require(SparkR)
-# MAGIC r_jobs <- sql("SELECT jobid FROM sdf_ihx_gold limit 10")
+# MAGIC r_jobs <- sql("SELECT jobid FROM sdf_ihx_bronze limit 10")
 # MAGIC display(r_jobs)
 # MAGIC 
 # MAGIC # Otherwise, to read a CSV file, you'd need to change the source to let databricks know
@@ -142,27 +150,27 @@ sdf_ihx_gold.createOrReplaceTempView("sdf_ihx_gold")
 # COMMAND ----------
 
 # MAGIC %sql 
-# MAGIC show tables like '%gold%'
+# MAGIC show tables like '%bronze%'
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC --- Below is example to load from a spark-compatible source, but it's disabled for speed
-# MAGIC --- CREATE TABLE IF NOT EXISTS `sdf_ihx_gold2` USING DELTA LOCATION "abfss://mlworkshop2021@STORAGE/ihx/IHX_gold";
+# MAGIC --- CREATE TABLE IF NOT EXISTS `sdf_ihx_bronze2` USING DELTA LOCATION "abfss://mlworkshop2021@STORAGE/ihx/IHX_bronze";
 # MAGIC --- Then select a few lines from this table
-# MAGIC --- SELECT * FROM `sdf_ihx_gold2` LIMIT 10;
+# MAGIC --- SELECT * FROM `sdf_ihx_bronze2` LIMIT 10;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC --- Does it look similar to the other table?
-# MAGIC SELECT * FROM `sdf_ihx_gold` LIMIT 10;
+# MAGIC SELECT * FROM `sdf_ihx_bronze` LIMIT 10;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC --- And clean up the table that we created
-# MAGIC DROP TABLE IF EXISTS `sdf_ihx_gold2`;
+# MAGIC DROP TABLE IF EXISTS `sdf_ihx_bronze2`;
 
 # COMMAND ----------
 
@@ -173,7 +181,7 @@ sdf_ihx_gold.createOrReplaceTempView("sdf_ihx_gold")
 # COMMAND ----------
 
 # please don't forget to release resources if you're doing a lot in one notebook
-spark.catalog.dropTempView("sdf_ihx_gold")
+spark.catalog.dropTempView("sdf_ihx_bronze")
 
 # COMMAND ----------
 
@@ -187,12 +195,12 @@ spark.catalog.dropTempView("sdf_ihx_gold")
 
 # COMMAND ----------
 
-# load our SQL functions for filteirng
+# load our SQL functions for filtering
 from pyspark.sql import functions as F
 
 # for cleaner code (and safety in operation, consider using F.col)
 # here, we display only item sin the 'SE' (south east region)
-sdf_sub = sdf_ihx_gold.filter(F.col('region') == F.lit('SE'))
+sdf_sub = sdf_ihx_bronze.filter(F.col('region') == F.lit('SE'))
 display(sdf_sub)
 
 
@@ -220,12 +228,27 @@ columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_
 
 ### CHALLENGE
 
-# here, we display only items in the 'SE' (south east region)
-sdf_sub = (sdf_ihx_gold
-    .filter( )
-    .select( )
+# here, we display only items in the 'S' (south east region)
+sdf_sub = (sdf_ihx_bronze
+#     .filter( )
+#     .select( )
 )
 ### CHALLENGE
+display(sdf_sub)
+
+# COMMAND ----------
+
+# here's a helper on how to write a list
+columns_subset = ['jobid', 'region', 'assignment_start_dt', 'hsd_top_competitor_price', 'hsd_top_competitor_name']
+
+### SOLUTION
+
+# here, we display only items in the 'SE' (south east region)
+sdf_sub = (sdf_ihx_bronze
+    .filter(F.col('region') == F.lit('S'))
+    .select(columns_subset)
+)
+### SOLUTION
 display(sdf_sub)
 
 # COMMAND ----------
@@ -270,14 +293,35 @@ display(sdf_prices)
 
 # COMMAND ----------
 
+## CHALLENGE
+
+# continuing from above, let's average prices from our competitors 
+sdf_prices = (sdf_ihx_bronze
+    .groupBy(
+        F.col('region'),
+#         F.col('')
+    )   # group by 
+    .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
+        F.max('hsd_top_competitor_price').alias('max'), 
+#         F.???().alias('average'))
+    )
+#    .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
+#    .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
+)
+## CHALLENGE
+
+display(sdf_prices)
+
+# COMMAND ----------
+
 ## SOLUTION
 
 # continuing from above, let's average prices from our competitors 
-sdf_prices = (sdf_ihx_gold
-    .groupBy( )   # group by 
+sdf_prices = (sdf_ihx_bronze
+    .groupBy(F.col('region'), F.col('hsd_top_competitor_name'))   # group by 
     .agg(F.min('hsd_top_competitor_price').alias('min'),    # aggregation
         F.max('hsd_top_competitor_price').alias('max'), 
-        F.avg( ).alias('average'))
+        F.avg('hsd_top_competitor_price').alias('average'))
     .filter(F.col('hsd_top_competitor_name').isNotNull())   # filter (done for you)
     .orderBy(F.col('hsd_top_competitor_name'))   # ordering by competitors (done for you)
 )
@@ -298,6 +342,7 @@ display(sdf_prices)
 # MAGIC # Done with Reads!
 # MAGIC Still want more or have questions about more advanced topics?  Check out the directory `extra_credit` to find a few different notebooks that have more useful details.
 # MAGIC 
-# MAGIC - `1_PERSONAL_CLUSTERS` - See how to create and manager your own cluster for easier library installation (out of scope for this workshop)
-# MAGIC - `1_KOALAS_AND_PANDAS` - Familiar with data science and ML in python already? Check out the spark analog to Pandas, Koalas, in this notebook.
-# MAGIC - `1_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1a_PERSONAL_CLUSTERS` - See how to create and manager your own cluster for easier library installation (out of scope for this workshop)
+# MAGIC - `1a_KOALAS_AND_PANDAS` - Familiar with data science and ML in python already? Check out the spark analog to Pandas, Koalas, in this notebook.
+# MAGIC - `1a_DATA_IN_DEEP` - Examples of getting a token from DEEP, storing personal secrets, reading from DEEP, writing to DEEP.  This extra ccredit script is definitely not required and is often referred to as a POC (proof of concept) environment instead of a business-sustained platform.
+# MAGIC - `1a_USE_EXISTING_PYTHON_SCRIPTS` - Simple header line demo to get your source correctly sync'd from DevOps.
