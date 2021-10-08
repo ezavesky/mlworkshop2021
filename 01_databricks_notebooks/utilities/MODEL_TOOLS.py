@@ -26,7 +26,6 @@ def create_untrained_classifier(classifier, col_features, param_grid=False):
             .addGrid(cf.numTrees, [20, 50, 100] if param_grid else [cf.getNumTrees()])
             .addGrid(cf.maxDepth, [5, 10, 20] if param_grid else [cf.getMaxDepth()])
             .addGrid(cf.maxBins, [16, 32, 64] if param_grid else [cf.getMaxBins()])
-            .addGrid(cf.maxBins, [16, 32, 64] if param_grid else [cf.getMaxBins()])
             .build()
         )
     elif classifier == "SVM":

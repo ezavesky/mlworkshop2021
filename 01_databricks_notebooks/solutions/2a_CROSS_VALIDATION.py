@@ -166,7 +166,7 @@ f.close()
 # MAGIC 
 # MAGIC Using the hints in this notebook, quickly build a method to accomplish these steps.
 # MAGIC 1. Create a [custom tag](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tag) (of your choosing) for the run model.
-# MAGIC 2. Use [parameter logging](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_param) to record the value of chosen columns (`col_features`) and the sampel fraction (`IHX_TRAINING_SAMPLE_FRACTION`)
+# MAGIC 2. Use [parameter logging](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_param) to record the value of chosen columns (`col_features`) and the sample fraction (`IHX_TRAINING_SAMPLE_FRACTION`)
 # MAGIC 3. Log specific [metrics](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_metric) like the evaluated metric stored in `score_eval`  on the testing dataset.
 # MAGIC 4. Log the [generated graphic/metric](https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.log_figure) that was generated above and stored in the variable `fig`.
 
