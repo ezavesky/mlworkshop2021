@@ -57,7 +57,7 @@ def write_csv_single(sdf, path_target):
     except Exception as e:
         pass
     # the main trick is to reparition to just `1` file...
-    sdf_random.repartition(1).write.format('csv').option('overwrite', True).option('header', True).save(path_target)
+    sdf.repartition(1).write.format('csv').option('overwrite', True).option('header', True).save(path_target)
     # find what else went there, looking for the one parquet split...
     stat_file = [(fs.name, fs.size) for fs in dbutils.fs.ls(path_target) if fs.name.endswith('.csv')][0]
     # move newly written to temp file
